@@ -17,18 +17,20 @@ export default function ProfilePage() {
       return;
     }
 
-    axios.get("https://sevaramjewellers.com/api/profile", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    })
-      .then(res => {
+    axios
+      .get("https://sevaramjewellers.com/api/profile", {
+        headers: {
+          "X-Authorization": token,
+          Accept: "application/json",
+        },
+      })
+
+      .then((res) => {
         const profile = res.data.user ?? res.data;
         setUser(profile);
         localStorage.setItem("auth_user", JSON.stringify(profile));
       })
-      .catch(err => {
+      .catch((err) => {
         console.warn("Using cached profile", err);
         alert("Could not fetch profile. Please login again.");
       });
@@ -37,16 +39,18 @@ export default function ProfilePage() {
   const updateProfile = async () => {
     setLoading(true);
     try {
-      const res = await axios.put("https://sevaramjewellers.com/api/profile",
+      const res = await axios.put(
+        "https://sevaramjewellers.com/api/profile",
         { name: user.name },
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            "X-Authorization": token,
             Accept: "application/json",
             "Content-Type": "application/json",
           },
         }
       );
+
       const updatedUser = res.data.user ?? res.data;
       setUser(updatedUser);
       localStorage.setItem("auth_user", JSON.stringify(updatedUser));
@@ -75,7 +79,10 @@ export default function ProfilePage() {
 
   return (
     <div className="container min-vh-100 d-flex justify-content-center align-items-center">
-      <div className="card shadow-lg p-4 rounded-4 w-100" style={{ maxWidth: 420 }}>
+      <div
+        className="card shadow-lg p-4 rounded-4 w-100"
+        style={{ maxWidth: 420 }}
+      >
         <h4 className="text-center text-danger fw-bold mb-3">My Profile</h4>
 
         <div className="text-center mb-4">
@@ -94,9 +101,18 @@ export default function ProfilePage() {
         <input className="form-control mb-3" value={user.email} disabled />
 
         {!editing ? (
-          <button className="btn btn-danger w-100 mb-2" onClick={() => setEditing(true)}>Edit Name</button>
+          <button
+            className="btn btn-danger w-100 mb-2"
+            onClick={() => setEditing(true)}
+          >
+            Edit Name
+          </button>
         ) : (
-          <button className="btn btn-success w-100 mb-2" onClick={updateProfile} disabled={loading}>
+          <button
+            className="btn btn-success w-100 mb-2"
+            onClick={updateProfile}
+            disabled={loading}
+          >
             <Save size={16} /> {loading ? "Saving..." : "Save Name"}
           </button>
         )}
