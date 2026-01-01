@@ -14,22 +14,38 @@ export default function AdminSubCategories() {
   const [image, setImage] = useState(null);
   const [editId, setEditId] = useState(null);
 
+  const [loading, setLoading] = useState(false);
+
   const headers = {
     "X-Authorization": token,
   };
 
-  // 🔹 Fetch Sub Categories
+  /* ================= FETCH SUB-CATEGORIES ================= */
   const fetchSubCategories = async () => {
-    const res = await axios.get(`${BASE_URL}/admin/sub-categories`, {
-      headers,
-    });
-    setSubCategories(res.data.data);
+    setLoading(true);
+    try {
+      const res = await axios.get(`${BASE_URL}/admin/sub-categories`, {
+        headers,
+      });
+      setSubCategories(res.data.data);
+    } catch {
+      alert("Failed to load sub-categories");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // 🔹 Fetch Categories (for dropdown)
+  /* ================= FETCH CATEGORIES ================= */
   const fetchCategories = async () => {
-    const res = await axios.get(`${BASE_URL}/admin/categories`, { headers });
-    setCategories(res.data.data);
+    setLoading(true);
+    try {
+      const res = await axios.get(`${BASE_URL}/admin/categories`, { headers });
+      setCategories(res.data.data);
+    } catch {
+      alert("Failed to load categories");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -37,7 +53,7 @@ export default function AdminSubCategories() {
     fetchCategories();
   }, []);
 
-  // 🔹 Add / Update Sub Category
+  /* ================= ADD / UPDATE ================= */
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -45,6 +61,8 @@ export default function AdminSubCategories() {
       alert("All fields required");
       return;
     }
+
+    setLoading(true);
 
     const formData = new FormData();
     formData.append("name", name);
@@ -70,33 +88,49 @@ export default function AdminSubCategories() {
       fetchSubCategories();
     } catch {
       alert("Operation failed");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 🔹 Edit
+  /* ================= EDIT ================= */
   const handleEdit = (sub) => {
     setEditId(sub.id);
     setName(sub.name);
     setCategoryId(sub.category_id);
-    setImage(sub.image);
+    setImage(null);
   };
 
-  // 🔹 Delete
+  /* ================= DELETE ================= */
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this sub-category?")) return;
 
-    await axios.delete(`${BASE_URL}/admin/sub-categories/${id}`, { headers });
-    fetchSubCategories();
+    setLoading(true);
+    try {
+      await axios.delete(`${BASE_URL}/admin/sub-categories/${id}`, { headers });
+      fetchSubCategories();
+    } catch {
+      alert("Delete failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // 🔹 Toggle Status
+  /* ================= TOGGLE STATUS ================= */
   const toggleStatus = async (id) => {
-    await axios.patch(
-      `${BASE_URL}/admin/sub-categories/${id}/toggle-status`,
-      {},
-      { headers }
-    );
-    fetchSubCategories();
+    setLoading(true);
+    try {
+      await axios.patch(
+        `${BASE_URL}/admin/sub-categories/${id}/toggle-status`,
+        {},
+        { headers }
+      );
+      fetchSubCategories();
+    } catch {
+      alert("Status update failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetForm = () => {
@@ -107,10 +141,25 @@ export default function AdminSubCategories() {
   };
 
   return (
-    <div className="container mt-4">
+    <div className="container mt-4 position-relative">
       <h3 className="mb-3">Sub-Category Management</h3>
 
-      {/* 🔹 Add / Edit Form */}
+      {/* ================= GLOBAL LOADER ================= */}
+      {loading && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
+          style={{
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 9999,
+          }}
+        >
+          <div className="spinner-border text-light" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      )}
+
+      {/* ================= FORM ================= */}
       <div className="card mb-4">
         <div className="card-body">
           <h5>{editId ? "Edit Sub-Category" : "Add Sub-Category"}</h5>
@@ -121,6 +170,7 @@ export default function AdminSubCategories() {
                 className="form-control"
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
+                disabled={loading}
               >
                 <option value="">Select Category</option>
                 {categories.map((cat) => (
@@ -138,6 +188,7 @@ export default function AdminSubCategories() {
                 placeholder="Sub-Category Name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                disabled={loading}
               />
             </div>
 
@@ -147,11 +198,12 @@ export default function AdminSubCategories() {
                 className="form-control"
                 accept="image/*"
                 onChange={(e) => setImage(e.target.files[0])}
+                disabled={loading}
               />
             </div>
 
             <div className="col-md-3 d-grid">
-              <button className="btn btn-primary">
+              <button className="btn btn-primary" disabled={loading}>
                 {editId ? "Update" : "Add"}
               </button>
             </div>
@@ -159,7 +211,7 @@ export default function AdminSubCategories() {
         </div>
       </div>
 
-      {/* 🔹 Sub Category List */}
+      {/* ================= TABLE ================= */}
       <div className="card">
         <div className="card-body">
           <h5>Sub-Category List</h5>
@@ -214,18 +266,21 @@ export default function AdminSubCategories() {
                     <td>
                       <button
                         className="btn btn-sm btn-warning me-2"
+                        disabled={loading}
                         onClick={() => handleEdit(sub)}
                       >
                         Edit
                       </button>
                       <button
                         className="btn btn-sm btn-danger me-2"
+                        disabled={loading}
                         onClick={() => handleDelete(sub.id)}
                       >
                         Delete
                       </button>
                       <button
                         className="btn btn-sm btn-secondary"
+                        disabled={loading}
                         onClick={() => toggleStatus(sub.id)}
                       >
                         Toggle Status

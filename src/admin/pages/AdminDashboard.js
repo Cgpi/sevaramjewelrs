@@ -53,7 +53,6 @@ export default function AdminDashboard() {
   return (
     <div className="container-fluid p-0">
       <div className="row g-0">
-
         {/* 🔹 SIDEBAR */}
         <nav
           className="col-md-2 bg-dark text-white p-3"
@@ -62,7 +61,6 @@ export default function AdminDashboard() {
           <h5 className="mb-4 text-center">Admin Panel</h5>
 
           <ul className="nav flex-column">
-
             {/* Dashboard */}
             <li className="nav-item">
               <Link
@@ -111,7 +109,6 @@ export default function AdminDashboard() {
                 Logout
               </button>
             </li>
-
           </ul>
         </nav>
 
@@ -134,7 +131,6 @@ export default function AdminDashboard() {
             <Route path="*" element={<Navigate to="/admin/dashboard" />} />
           </Routes>
         </div>
-
       </div>
     </div>
   );

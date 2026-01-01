@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -12,6 +12,9 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  const [timer, setTimer] = useState(0);
+  const [canResend, setCanResend] = useState(true);
+
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -19,9 +22,22 @@ export default function AdminLogin() {
     otp: "",
   });
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
+
+  /* ================= TIMER LOGIC ================= */
+  useEffect(() => {
+    if (timer === 0) {
+      setCanResend(true);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setTimer((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timer]);
 
   /* ================= LOGIN ================= */
   const handleLogin = async (e) => {
@@ -36,7 +52,7 @@ export default function AdminLogin() {
       });
 
       localStorage.setItem("admin_token", res.data.token);
-      localStorage.setItem("admin_user", JSON.stringify(res.data));
+      localStorage.setItem("admin_user", JSON.stringify(res.data.admin));
 
       navigate("/admin/dashboard");
     } catch {
@@ -59,6 +75,9 @@ export default function AdminLogin() {
 
       setMessage("✅ OTP sent to your email");
       setMode("reset");
+
+      setTimer(75);
+      setCanResend(false);
     } catch {
       setMessage("❌ Email not found");
     } finally {
@@ -97,7 +116,7 @@ export default function AdminLogin() {
 
   return (
     <div className="container-fluid bg-dark vh-100 d-flex align-items-center justify-content-center">
-      <div className="card shadow-lg p-4" style={{ width: "380px" }}>
+      <div className="card shadow-lg p-4 rounded-4" style={{ width: 380 }}>
         <h4 className="text-center mb-3 fw-bold text-primary">
           {mode === "login" && "Admin Login"}
           {mode === "forgot" && "Forgot Password"}
@@ -105,12 +124,10 @@ export default function AdminLogin() {
         </h4>
 
         {message && (
-          <div className="alert alert-info py-2 text-center">
-            {message}
-          </div>
+          <div className="alert alert-info py-2 text-center">{message}</div>
         )}
 
-        {/* ================= LOGIN FORM ================= */}
+        {/* ================= LOGIN ================= */}
         {mode === "login" && (
           <form onSubmit={handleLogin}>
             <input
@@ -149,7 +166,7 @@ export default function AdminLogin() {
           </form>
         )}
 
-        {/* ================= FORGOT FORM ================= */}
+        {/* ================= FORGOT ================= */}
         {mode === "forgot" && (
           <form onSubmit={handleForgot}>
             <input
@@ -178,7 +195,7 @@ export default function AdminLogin() {
           </form>
         )}
 
-        {/* ================= RESET FORM ================= */}
+        {/* ================= RESET ================= */}
         {mode === "reset" && (
           <form onSubmit={handleReset}>
             <input
@@ -204,12 +221,29 @@ export default function AdminLogin() {
             <input
               type="password"
               name="password_confirmation"
-              className="form-control mb-3"
+              className="form-control mb-2"
               placeholder="Confirm Password"
               value={form.password_confirmation}
               onChange={handleChange}
               required
             />
+
+            <div className="text-center mb-2 text-muted">
+              {timer > 0 ? (
+                <>
+                  Resend OTP in <b>{timer}</b> seconds
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-link p-0"
+                  disabled={!canResend}
+                  onClick={handleForgot}
+                >
+                  Resend OTP
+                </button>
+              )}
+            </div>
 
             <button className="btn btn-success w-100" disabled={loading}>
               {loading ? "Resetting..." : "Reset Password"}

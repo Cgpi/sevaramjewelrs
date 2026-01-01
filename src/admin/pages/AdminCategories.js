@@ -14,16 +14,18 @@ export default function AdminCategories() {
 
   const headers = {
     "X-Authorization": token,
-    "Content-Type": "application/json",
   };
 
-  // 🔹 Fetch Categories
+  /* ================= FETCH CATEGORIES ================= */
   const fetchCategories = async () => {
+    setLoading(true);
     try {
       const res = await axios.get(`${BASE_URL}/admin/categories`, { headers });
       setCategories(res.data.data);
-    } catch (err) {
+    } catch {
       alert("Failed to load categories");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -31,7 +33,7 @@ export default function AdminCategories() {
     fetchCategories();
   }, []);
 
-  // 🔹 Add / Update Category
+  /* ================= ADD / UPDATE ================= */
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -40,55 +42,59 @@ export default function AdminCategories() {
       return;
     }
 
+    setLoading(true);
+
     const formData = new FormData();
     formData.append("name", name);
-    if (image) {
+    if (image && typeof image === "object") {
       formData.append("image", image);
     }
 
     try {
       if (editId) {
         await axios.post(`${BASE_URL}/admin/categories/${editId}`, formData, {
-          headers: {
-            "X-Authorization": token,
-          },
+          headers,
         });
       } else {
         await axios.post(`${BASE_URL}/admin/categories`, formData, {
-          headers: {
-            "X-Authorization": token,
-          },
+          headers,
         });
       }
 
       resetForm();
       fetchCategories();
-    } catch (err) {
+    } catch {
       alert("Upload failed");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 🔹 Edit Category
+  /* ================= EDIT ================= */
   const handleEdit = (cat) => {
     setEditId(cat.id);
     setName(cat.name);
-    setImage(cat.image);
+    setImage(null);
   };
 
-  // 🔹 Delete Category
+  /* ================= DELETE ================= */
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this category?")) return;
 
+    setLoading(true);
     try {
       await axios.delete(`${BASE_URL}/admin/categories/${id}`, { headers });
       fetchCategories();
     } catch {
       alert("Delete failed");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 🔹 Enable / Disable Status
+  /* ================= TOGGLE STATUS ================= */
   const toggleStatus = async (id) => {
+    setLoading(true);
     try {
       await axios.patch(
         `${BASE_URL}/admin/categories/${id}/status`,
@@ -98,20 +104,37 @@ export default function AdminCategories() {
       fetchCategories();
     } catch {
       alert("Status update failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   const resetForm = () => {
     setName("");
-    setImage("");
+    setImage(null);
     setEditId(null);
   };
 
   return (
-    <div className="container mt-4">
+    <div className="container mt-4 position-relative">
       <h3 className="mb-3">Category Management</h3>
 
-      {/* 🔹 Add / Edit Form */}
+      {/* ================= GLOBAL LOADER ================= */}
+      {loading && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
+          style={{
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 9999,
+          }}
+        >
+          <div className="spinner-border text-light" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      )}
+
+      {/* ================= FORM ================= */}
       <div className="card mb-4">
         <div className="card-body">
           <h5 className="card-title">
@@ -126,6 +149,7 @@ export default function AdminCategories() {
                 placeholder="Category Name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                disabled={loading}
               />
             </div>
 
@@ -135,6 +159,7 @@ export default function AdminCategories() {
                 className="form-control"
                 accept="image/*"
                 onChange={(e) => setImage(e.target.files[0])}
+                disabled={loading}
               />
             </div>
 
@@ -147,7 +172,7 @@ export default function AdminCategories() {
         </div>
       </div>
 
-      {/* 🔹 Category List */}
+      {/* ================= TABLE ================= */}
       <div className="card">
         <div className="card-body">
           <h5 className="card-title">Category List</h5>
@@ -188,7 +213,6 @@ export default function AdminCategories() {
                         "No Image"
                       )}
                     </td>
-
                     <td>
                       <span
                         className={`badge ${
@@ -201,6 +225,7 @@ export default function AdminCategories() {
                     <td>
                       <button
                         className="btn btn-sm btn-warning me-2"
+                        disabled={loading}
                         onClick={() => handleEdit(cat)}
                       >
                         Edit
@@ -208,6 +233,7 @@ export default function AdminCategories() {
 
                       <button
                         className="btn btn-sm btn-danger me-2"
+                        disabled={loading}
                         onClick={() => handleDelete(cat.id)}
                       >
                         Delete
@@ -215,6 +241,7 @@ export default function AdminCategories() {
 
                       <button
                         className="btn btn-sm btn-secondary"
+                        disabled={loading}
                         onClick={() => toggleStatus(cat.id)}
                       >
                         Toggle Status
