@@ -256,7 +256,7 @@ export default function AdminCategories() {
         }
       `}</style>
 
-      <h3 className="mb-4">💍 Category Management</h3>
+      <h3 className="mb-4">Category Management</h3>
 
       {loading && (
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center loader-overlay">

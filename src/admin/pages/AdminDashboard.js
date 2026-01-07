@@ -12,6 +12,8 @@ import axios from "axios";
 import AdminCategories from "./AdminCategories";
 import AdminSubCategories from "./AdminSubCategories";
 import dashboardImage from "../images/dashboard.jpg";
+import AdminProducts from "./AdminProducts";
+import AdminCollections from "./AdminCollections";
 
 export default function AdminDashboard() {
   const location = useLocation();
@@ -242,7 +244,7 @@ export default function AdminDashboard() {
 
       {/* SIDEBAR */}
       <nav className={`jewelry-sidebar ${isSidebarOpen ? "show" : ""}`}>
-        <h5>💍 Admin Panel</h5>
+        <h5>Admin Panel</h5>
 
         <ul className="nav flex-column">
           <li className="nav-item">
@@ -277,6 +279,28 @@ export default function AdminDashboard() {
               }`}
             >
               Sub-Categories
+            </Link>
+          </li>
+
+          <li className="nav-item">
+            <Link
+              to="/admin/products"
+              className={`nav-link ${
+                location.pathname === "/admin/products" ? "active-link" : ""
+              }`}
+            >
+              Add Products
+            </Link>
+          </li>
+
+          <li className="nav-item">
+            <Link
+              to="/admin/collections"
+              className={`nav-link ${
+                location.pathname === "/admin/collections" ? "active-link" : ""
+              }`}
+            >
+              Collections
             </Link>
           </li>
 
@@ -325,6 +349,8 @@ export default function AdminDashboard() {
 
           <Route path="/categories" element={<AdminCategories />} />
           <Route path="/sub-categories" element={<AdminSubCategories />} />
+          <Route path="/products" element={<AdminProducts />} />
+          <Route path="/collections" element={<AdminCollections />} />
 
           <Route path="*" element={<Navigate to="/admin/dashboard" />} />
         </Routes>
