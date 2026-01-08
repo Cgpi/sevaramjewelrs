@@ -49,6 +49,9 @@ export default function AdminCollections() {
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [productLoading, setProductLoading] = useState(false);
 
+  /* SEARCH STATE */
+  const [searchTerm, setSearchTerm] = useState("");
+
   /* ================= FETCH ================= */
   const fetchCollections = async () => {
     try {
@@ -152,6 +155,7 @@ export default function AdminCollections() {
   const openProductModal = async (collection) => {
     setShowModal(true);
     setSelectedProducts([]);
+    setSearchTerm("");
     await refreshActiveCollection(collection.id);
   };
 
@@ -166,6 +170,7 @@ export default function AdminCollections() {
       await refreshActiveCollection(activeCollection.id);
       await fetchCollections();
       setSelectedProducts([]);
+      setSearchTerm("");
     } finally {
       setProductLoading(false);
     }
@@ -174,9 +179,11 @@ export default function AdminCollections() {
   const detachProduct = async (productId) => {
     try {
       setProductLoading(true);
-      await api.delete(
+      await api.post(
         `/admin/collections/${activeCollection.id}/detach-products`,
-        { data: { product_ids: [productId] } }
+        {
+          product_ids: [productId],
+        }
       );
       await refreshActiveCollection(activeCollection.id);
       await fetchCollections();
@@ -184,6 +191,18 @@ export default function AdminCollections() {
       setProductLoading(false);
     }
   };
+
+  /* ================= FILTER PRODUCTS ================= */
+  const filteredProducts = products
+    .filter((p) => !activeCollection?.products?.some((ap) => ap.id === p.id))
+    .filter((p) => {
+      const term = searchTerm.toLowerCase();
+      return (
+        p.product_name.toLowerCase().includes(term) ||
+        p.category_name?.toLowerCase().includes(term) ||
+        p.sub_category_name?.toLowerCase().includes(term)
+      );
+    });
 
   /* ================= UI ================= */
   return (
@@ -405,6 +424,15 @@ export default function AdminCollections() {
                 <hr />
 
                 <h6>Attach Products</h6>
+                {/* ===== SEARCH BAR ===== */}
+                <input
+                  type="text"
+                  placeholder="Search by name, category, sub-category..."
+                  className="form-control mb-2"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+
                 <select
                   multiple
                   className="form-control"
@@ -416,17 +444,15 @@ export default function AdminCollections() {
                       )
                     )
                   }
+                  style={{ height: 200 }}
                 >
-                  {products
-                    .filter(
-                      (p) =>
-                        !activeCollection.products?.some((ap) => ap.id === p.id)
-                    )
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.product_name}
-                      </option>
-                    ))}
+                  {filteredProducts.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.product_name}
+                      {p.category_name ? ` — ${p.category_name}` : ""}
+                      {p.sub_category_name ? ` / ${p.sub_category_name}` : ""}
+                    </option>
+                  ))}
                 </select>
 
                 <button
