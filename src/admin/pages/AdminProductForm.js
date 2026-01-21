@@ -14,6 +14,7 @@ export default function AdminProductForm({
   imagePreviews,
   setImagePreviews,
   onClose,
+  onDeleteAllImages,
 }) {
   const dragItem = useRef();
   const dragOverItem = useRef();
@@ -213,46 +214,65 @@ export default function AdminProductForm({
             </div>
 
             {imagePreviews.length > 0 && (
-              <div className="col-md-12 d-flex flex-wrap gap-2 mt-2">
-                {imagePreviews.map((src, i) => (
-                  <div
-                    key={i}
-                    style={{ position: "relative", cursor: "grab" }}
-                    draggable
-                    onDragStart={() => handleDragStart(i)}
-                    onDragEnter={() => handleDragEnter(i)}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <img
-                      src={src}
-                      alt="preview"
-                      style={{
-                        width: 100,
-                        height: 100,
-                        objectFit: "cover",
-                        border: "1px solid #ccc",
-                      }}
-                    />
+              <div className="col-12 mt-3">
+                {/* Image Preview Grid */}
+                <div className="row g-2">
+                  {imagePreviews.map((src, i) => (
+                    <div
+                      key={i}
+                      className="col-4 col-sm-3 col-md-2"
+                      draggable
+                      onDragStart={() => handleDragStart(i)}
+                      onDragEnter={() => handleDragEnter(i)}
+                      onDragEnd={handleDragEnd}
+                      style={{ cursor: "grab" }}
+                    >
+                      <div className="position-relative">
+                        <img
+                          src={src}
+                          alt="preview"
+                          className="img-fluid rounded border"
+                          style={{
+                            height: 120,
+                            width: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+
+                        {/* Remove Single Image */}
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm position-absolute top-0 end-0 translate-middle"
+                          style={{
+                            width: 22,
+                            height: 22,
+                            padding: 0,
+                            borderRadius: "50%",
+                            fontSize: 14,
+                            lineHeight: "14px",
+                          }}
+                          onClick={() => removeImage(i)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Delete All Images Button */}
+                {editId && (
+                  <div className="mt-3 d-flex justify-content-start">
                     <button
                       type="button"
-                      onClick={() => removeImage(i)}
-                      style={{
-                        position: "absolute",
-                        top: -8,
-                        right: -8,
-                        background: "red",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: "50%",
-                        width: 20,
-                        height: 20,
-                        cursor: "pointer",
-                      }}
+                      className="btn btn-danger w-20 w-sm-auto"
+                      disabled={loading}
+                      onClick={() => onDeleteAllImages(editId)}
                     >
-                      ×
+                      Delete All Images
                     </button>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>

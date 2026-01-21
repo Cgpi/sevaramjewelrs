@@ -4,35 +4,49 @@ import axios from "axios";
 const BASE_URL = "https://sevaramjewellers.com/api";
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 
+/* ================= LOADER ================= */
+const Loader = ({ text = "Loading..." }) => (
+  <div className="d-flex justify-content-center align-items-center py-4">
+    <div className="spinner-border text-primary me-2" />
+    <strong>{text}</strong>
+  </div>
+);
+
 export default function AdminSubCategories() {
   const token = localStorage.getItem("admin_token");
 
-  const [subCategories, setSubCategories] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const api = axios.create({
+    baseURL: BASE_URL,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
 
-  const [search, setSearch] = useState("");
-  const [name, setName] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [image, setImage] = useState(null);
-  const [preview, setPreview] = useState(null);
-  const [editId, setEditId] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  // For file reset
-  const [fileKey, setFileKey] = useState(Date.now());
-
-  const headers = {
-    "X-Authorization": token,
+  /* ================= STATES ================= */
+  const emptyForm = {
+    name: "",
+    category_id: "",
+    image: null,
+    preview: null,
   };
 
-  /* ================= FETCH SUB-CATEGORIES ================= */
+  const [subCategories, setSubCategories] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [form, setForm] = useState(emptyForm);
+
+  const [editId, setEditId] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  /* ================= FETCH ================= */
   const fetchSubCategories = async () => {
-    setLoading(true);
     try {
-      const res = await axios.get(`${BASE_URL}/admin/sub-categories`, {
-        headers,
-      });
-      setSubCategories(res.data.data);
+      setLoading(true);
+      const res = await api.get("/admin/sub-categories");
+      setSubCategories(res.data?.data || []);
     } catch {
       alert("Failed to load sub-categories");
     } finally {
@@ -40,11 +54,10 @@ export default function AdminSubCategories() {
     }
   };
 
-  /* ================= FETCH CATEGORIES ================= */
   const fetchCategories = async () => {
     try {
-      const res = await axios.get(`${BASE_URL}/admin/categories`, { headers });
-      setCategories(res.data.data);
+      const res = await api.get("/admin/categories");
+      setCategories(res.data?.data || []);
     } catch {
       alert("Failed to load categories");
     }
@@ -55,16 +68,31 @@ export default function AdminSubCategories() {
     fetchCategories();
   }, []);
 
-  /* ================= SEARCH ================= */
-  const filteredSubCategories = subCategories.filter((sub) => {
-    const keyword = search.toLowerCase();
-    return (
-      sub.name?.toLowerCase().includes(keyword) ||
-      sub.category?.name?.toLowerCase().includes(keyword)
-    );
-  });
+  /* ================= FORM ================= */
+  const openCreateForm = () => {
+    resetForm();
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
-  /* ================= IMAGE HANDLER ================= */
+  const openEditForm = (sub) => {
+    setEditId(sub.id);
+    setForm({
+      name: sub.name || "",
+      category_id: sub.category_id || "",
+      image: null,
+      preview: sub.image_url || null,
+    });
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const resetForm = () => {
+    setForm(emptyForm);
+    setEditId(null);
+  };
+
+  /* ================= IMAGE ================= */
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -75,355 +103,228 @@ export default function AdminSubCategories() {
       return;
     }
 
-    setImage(file);
-    setPreview(URL.createObjectURL(file));
+    setForm({
+      ...form,
+      image: file,
+      preview: URL.createObjectURL(file),
+    });
   };
 
-  /* ================= ADD / UPDATE ================= */
+  /* ================= SAVE ================= */
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSaving(true);
 
-    if (!name || !categoryId || (!editId && !image)) {
+    if (!form.name || !form.category_id || (!editId && !form.image)) {
       alert("All fields are required");
+      setSaving(false);
       return;
     }
 
-    setLoading(true);
-
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("category_id", categoryId);
-
-    if (image instanceof File) {
-      formData.append("image", image);
-    }
-
     try {
+      const formData = new FormData();
+      formData.append("name", form.name);
+      formData.append("category_id", form.category_id);
+      if (form.image) formData.append("image", form.image);
+
       if (editId) {
-        await axios.post(
-          `${BASE_URL}/admin/sub-categories/${editId}`,
-          formData,
-          { headers }
-        );
+        await api.post(`/admin/sub-categories/${editId}`, formData);
       } else {
-        await axios.post(`${BASE_URL}/admin/sub-categories`, formData, {
-          headers,
-        });
+        await api.post("/admin/sub-categories", formData);
       }
 
+      await fetchSubCategories();
+      setShowForm(false);
       resetForm();
-      fetchSubCategories();
     } catch {
-      alert("Operation failed");
+      alert("Failed to save sub-category");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
-  };
-
-  /* ================= EDIT ================= */
-  const handleEdit = (sub) => {
-    setEditId(sub.id);
-    setName(sub.name);
-    setCategoryId(sub.category_id);
-    setImage(null);
-    setPreview(sub.image_url || null);
-    setFileKey(Date.now());
   };
 
   /* ================= DELETE ================= */
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this sub-category?")) return;
 
-    setLoading(true);
     try {
-      await axios.delete(`${BASE_URL}/admin/sub-categories/${id}`, { headers });
+      await api.delete(`/admin/sub-categories/${id}`);
       fetchSubCategories();
     } catch {
       alert("Delete failed");
-    } finally {
-      setLoading(false);
     }
   };
 
-  /* ================= TOGGLE STATUS ================= */
+  /* ================= STATUS ================= */
   const toggleStatus = async (id) => {
-    setLoading(true);
     try {
-      await axios.patch(
-        `${BASE_URL}/admin/sub-categories/${id}/toggle-status`,
-        {},
-        { headers }
-      );
+      await api.patch(`/admin/sub-categories/${id}/toggle-status`);
       fetchSubCategories();
     } catch {
       alert("Status update failed");
-    } finally {
-      setLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setName("");
-    setCategoryId("");
-    setImage(null);
-    setPreview(null);
-    setEditId(null);
-    setFileKey(Date.now());
-  };
-
+  /* ================= UI ================= */
   return (
-    <div className="container jewelry-container">
-      <style>{`
-        .jewelry-container {
-          font-family: "Georgia", serif;
-          padding-bottom: 40px;
-        }
-        h3, h5 {
-          color: #7a5c1e;
-          font-weight: bold;
-        }
-        .loader-overlay {
-          background: rgba(0, 0, 0, 0.7);
-          z-index: 9999;
-        }
-        .jewelry-card {
-          border: none;
-          border-radius: 12px;
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-          background: #fffaf2;
-        }
-        .jewelry-input {
-          border-radius: 8px;
-          border: 1px solid #d4af37;
-        }
-        .jewelry-btn {
-          background: linear-gradient(135deg, #d4af37, #a8862d);
-          border: none;
-          color: #000;
-          font-weight: bold;
-          border-radius: 8px;
-          justify-self: center;
-        }
-        .subcat-img {
-          width: 60px;
-          height: 60px;
-          object-fit: cover;
-          border-radius: 8px;
-          border: 2px solid #d4af37;
-        }
-        /* ================= RESPONSIVE TABLE ================= */
+    <div className="container mt-3">
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h3>Sub-Categories</h3>
+        <button className="btn btn-primary" onClick={openCreateForm}>
+          + Add Sub-Category
+        </button>
+      </div>
 
-        .table-responsive-wrapper {
-          width: 100%;
-          overflow-x: auto;
-        }
+      {/* ================= FORM ================= */}
+      {showForm && (
+        <div className="card mb-4">
+          <div className="card-body">
+            <h5 className="mb-3">
+              {editId ? "Edit Sub-Category" : "Create Sub-Category"}
+            </h5>
 
-        /* MOBILE VIEW */
-        @media (max-width: 768px) {
-          .responsive-table thead {
-            display: none;
-          }
+            <form onSubmit={handleSubmit} className="row g-3">
+              <div className="col-md-6">
+                <label className="form-label">Category</label>
+                <select
+                  className="form-control"
+                  value={form.category_id}
+                  onChange={(e) =>
+                    setForm({ ...form, category_id: e.target.value })
+                  }
+                  required
+                >
+                  <option value="">Select Category</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          .responsive-table,
-          .responsive-table tbody,
-          .responsive-table tr,
-          .responsive-table td {
-            display: block;
-            width: 100%;
-          }
+              <div className="col-md-6">
+                <label className="form-label">Sub-Category Name</label>
+                <input
+                  className="form-control"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                />
+              </div>
 
-          .responsive-table tr {
-            margin-bottom: 15px;
-            background: #fffaf2;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            padding: 10px;
-          }
+              <div className="col-md-6">
+                <label className="form-label">Image</label>
+                <input
+                  type="file"
+                  className="form-control"
+                  accept="image/*"
+                  required={!editId}
+                  onChange={handleImageChange}
+                />
+              </div>
 
-          .responsive-table td {
-            text-align: right;
-            padding-left: 50%;
-            position: relative;
-            border: none;
-            border-bottom: 1px solid #e0d3a3;
-          }
+              {form.preview && (
+                <div className="col-md-6 d-flex align-items-end">
+                  <img
+                    src={form.preview}
+                    alt="Preview"
+                    style={{
+                      width: 80,
+                      height: 80,
+                      objectFit: "cover",
+                      borderRadius: 6,
+                    }}
+                  />
+                </div>
+              )}
 
-          .responsive-table td:last-child {
-            border-bottom: none;
-          }
-
-          .responsive-table td::before {
-            content: attr(data-label);
-            position: absolute;
-            left: 10px;
-            width: 45%;
-            padding-left: 10px;
-            font-weight: bold;
-            color: #7a5c1e;
-            text-align: left;
-          }
-
-          .subcat-img {
-            width: 50px;
-            height: 50px;
-          }
-
-          .responsive-table td[data-label="Actions"] button {
-            margin-top: 5px;
-          }
-        }
-
-      `}</style>
-
-      <h3 className="mb-4">Sub-Category Management</h3>
-
-      {loading && (
-        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center loader-overlay">
-          <div className="spinner-border text-warning"></div>
+              <div className="col-12">
+                <button className="btn btn-success" disabled={saving}>
+                  {saving ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save"
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary ms-2"
+                  onClick={() => setShowForm(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
-      {/* FORM */}
-      <div
-        className="card jewelry-card mb-4"
-        style={{
-          maxWidth: "900px",
-          margin: "0 auto",
-          width: "100%",
-        }}
-      >
+      {/* ================= TABLE ================= */}
+      <div className="card">
         <div className="card-body">
-          <h5>{editId ? "Edit Sub-Category" : "Add Sub-Category"}</h5>
-
-          <form onSubmit={handleSubmit}>
-            {/* Category Select */}
-            <div className="mb-3">
-              <label className="form-label fw-bold">Category</label>
-              <select
-                className="form-control jewelry-input"
-                value={categoryId}
-                required
-                onChange={(e) => setCategoryId(e.target.value)}
-              >
-                <option value="">Select Category</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Sub-Category Name */}
-            <div className="mb-3">
-              <label className="form-label fw-bold">Sub-Category Name</label>
-              <input
-                type="text"
-                className="form-control jewelry-input"
-                value={name}
-                required
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-
-            {/* Image Upload */}
-            <div className="mb-3">
-              <label className="form-label fw-bold">Sub-Category Image</label>
-              <input
-                key={fileKey}
-                type="file"
-                className="form-control jewelry-input"
-                accept="image/*"
-                required={!editId}
-                onChange={handleImageChange}
-              />
-            </div>
-
-            {/* Preview */}
-            <div className="mb-3 text-center">
-              {preview ? (
-                <img src={preview} alt="Preview" className="subcat-img" />
-              ) : (
-                <div style={{ fontSize: "13px", color: "#999" }}>
-                  No Image Selected
-                </div>
-              )}
-            </div>
-
-            {/* Submit Button */}
-            <div className="d-grid">
-              <button className="btn jewelry-btn">
-                {editId ? "Update Sub-Category" : "Add Sub-Category"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      {/* TABLE */}
-      <div className="card jewelry-card">
-        <div className="card-body">
-          <input
-            type="text"
-            className="form-control jewelry-input mb-3"
-            placeholder="🔍 Search sub-category..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-
-          <div className="table-responsive-wrapper">
-            <table className="table table-bordered table-hover responsive-table">
+          {loading ? (
+            <Loader text="Loading sub-categories..." />
+          ) : (
+            <table className="table table-bordered align-middle">
               <thead>
                 <tr>
-                  <th>Sr No</th>
+                  <th width="60">#</th>
                   <th>Category</th>
                   <th>Name</th>
                   <th>Image</th>
                   <th>Status</th>
-                  <th>Actions</th>
+                  <th width="200">Actions</th>
                 </tr>
               </thead>
-
               <tbody>
-                {filteredSubCategories.length === 0 ? (
-                  <tr>
-                    <td colSpan="6">No sub-categories found</td>
-                  </tr>
-                ) : (
-                  filteredSubCategories.map((sub, index) => (
+                {subCategories.length > 0 ? (
+                  subCategories.map((sub, i) => (
                     <tr key={sub.id}>
-                      <td data-label="Sr No">{index + 1}</td>
-                      <td data-label="Category">{sub.category?.name}</td>
-                      <td data-label="Name">{sub.name}</td>
-                      <td data-label="Image">
+                      <td>{i + 1}</td>
+                      <td>{sub.category?.name}</td>
+                      <td>{sub.name}</td>
+                      <td>
                         {sub.image_url ? (
                           <img
                             src={sub.image_url}
                             alt={sub.name}
-                            className="subcat-img"
+                            style={{
+                              width: 60,
+                              height: 60,
+                              objectFit: "cover",
+                              borderRadius: 6,
+                            }}
                           />
                         ) : (
-                          "No Image"
+                          "—"
                         )}
                       </td>
-                      <td data-label="Status">
-                        {sub.status === 1 ? "Enabled" : "Disabled"}
+                      <td>
+                        {sub.status === 1 ? (
+                          <span className="badge bg-success">Active</span>
+                        ) : (
+                          <span className="badge bg-secondary">Inactive</span>
+                        )}
                       </td>
-                      <td data-label="Actions">
+                      <td>
                         <button
-                          className="btn btn-warning btn-sm me-1"
-                          onClick={() => handleEdit(sub)}
+                          className="btn btn-sm btn-warning me-2"
+                          onClick={() => openEditForm(sub)}
                         >
                           Edit
                         </button>
                         <button
-                          className="btn btn-danger btn-sm me-1"
+                          className="btn btn-sm btn-danger me-2"
                           onClick={() => handleDelete(sub.id)}
                         >
                           Delete
                         </button>
                         <button
-                          className="btn btn-secondary btn-sm"
+                          className="btn btn-sm btn-secondary"
                           onClick={() => toggleStatus(sub.id)}
                         >
                           Toggle
@@ -431,10 +332,16 @@ export default function AdminSubCategories() {
                       </td>
                     </tr>
                   ))
+                ) : (
+                  <tr>
+                    <td colSpan="6" className="text-center text-muted">
+                      No sub-categories found
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
-          </div>
+          )}
         </div>
       </div>
     </div>

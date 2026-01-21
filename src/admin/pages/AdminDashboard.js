@@ -14,6 +14,9 @@ import AdminSubCategories from "./AdminSubCategories";
 import dashboardImage from "../images/dashboard.jpg";
 import AdminProducts from "./AdminProducts";
 import AdminCollections from "./AdminCollections";
+import AdminBanners from "./AdminBanners";
+import AdminCmsPages from "./AdminCmsPages";
+import AdminCoupons from "./AdminCoupons";
 
 export default function AdminDashboard() {
   const location = useLocation();
@@ -304,6 +307,39 @@ export default function AdminDashboard() {
             </Link>
           </li>
 
+          <li className="nav-item">
+            <Link
+              to="/admin/banners"
+              className={`nav-link ${
+                location.pathname === "/admin/banners" ? "active-link" : ""
+              }`}
+            >
+              Banners
+            </Link>
+          </li>
+
+          <li className="nav-item">
+            <Link
+              to="/admin/cms-pages"
+              className={`nav-link ${
+                location.pathname === "/admin/cms-pages" ? "active-link" : ""
+              }`}
+            >
+              CMS Pages
+            </Link>
+          </li>
+
+          <li className="nav-item">
+            <Link
+              to="/admin/coupons"
+              className={`nav-link ${
+                location.pathname === "/admin/coupons" ? "active-link" : ""
+              }`}
+            >
+              Coupons
+            </Link>
+          </li>
+
           <li className="nav-item mt-4">
             <button onClick={logout} className="btn logout-btn w-100">
               Logout
@@ -351,6 +387,10 @@ export default function AdminDashboard() {
           <Route path="/sub-categories" element={<AdminSubCategories />} />
           <Route path="/products" element={<AdminProducts />} />
           <Route path="/collections" element={<AdminCollections />} />
+          <Route path="/banners" element={<AdminBanners />} />
+          <Route path="/cms-pages" element={<AdminCmsPages />} />
+          <Route path="/coupons" element={<AdminCoupons />} />
+          
 
           <Route path="*" element={<Navigate to="/admin/dashboard" />} />
         </Routes>

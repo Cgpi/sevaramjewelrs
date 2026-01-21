@@ -46,15 +46,14 @@ export default function AdminProducts() {
 
   /* ================= FETCH ================= */
   const fetchProducts = async () => {
-    setLoading(true); // ✅ show loader
+    setLoading(true);
     try {
       const res = await axios.get(`${BASE_URL}/admin/products`, { headers });
       setProducts(Array.isArray(res.data.data) ? res.data.data : []);
-    } catch (err) {
-      console.error(err);
+    } catch {
       setProducts([]);
     }
-    setLoading(false); // ✅ hide loader
+    setLoading(false);
   };
 
   const fetchCategories = async () => {
@@ -85,12 +84,13 @@ export default function AdminProducts() {
   };
 
   useEffect(() => {
+    setLoading(true);
     fetchProducts();
     fetchCategories();
     fetchAllSubCategories();
   }, []);
 
-  /* ================= FORM HANDLERS ================= */
+  /* ================= FORM ================= */
   const resetForm = () => {
     setEditId(null);
     setForm(emptyForm);
@@ -104,9 +104,7 @@ export default function AdminProducts() {
       ...product,
       attributes: product.attributes || emptyForm.attributes,
     });
-
     fetchSubCategories(product.category_id);
-
     setImagePreviews(product.images?.map((i) => i.image_url) || []);
     setImages([]);
     setShowForm(true);
@@ -130,22 +128,20 @@ export default function AdminProducts() {
       await axios.post(`${BASE_URL}/admin/products/${id}/clone`, null, {
         headers,
       });
-      alert("Product duplicated successfully!");
       fetchProducts();
     } catch {
-      alert("Failed to duplicate product");
+      alert("Clone failed");
     } finally {
       setLoading(false);
     }
   };
 
   const deleteAllImages = async (productId) => {
-    if (!window.confirm("Delete all images of this product?")) return;
+    if (!window.confirm("Delete all images?")) return;
     try {
       await axios.delete(`${BASE_URL}/admin/products/${productId}/images`, {
         headers,
       });
-      alert("All images deleted successfully!");
       fetchProducts();
     } catch {
       alert("Failed to delete images");
@@ -196,6 +192,50 @@ export default function AdminProducts() {
     }
   };
 
+  /* ================= BULK CSV ================= */
+  const downloadCsvTemplate = async () => {
+    try {
+      const res = await axios.get(
+        `${BASE_URL}/admin/products/bulk-upload/template`,
+        { headers, responseType: "blob" }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "product_bulk_upload_template.csv";
+      link.click();
+    } catch {
+      alert("Download failed");
+    }
+  };
+
+  const uploadBulkCsv = async (file) => {
+    if (!file) {
+      alert("Please select CSV file");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      setLoading(true);
+      await axios.post(`${BASE_URL}/admin/products/bulk-upload`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      alert("Bulk upload successful");
+      fetchProducts();
+    } catch {
+      alert("Bulk upload failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="container">
       <h3 className="mb-4">Product Management</h3>
@@ -225,6 +265,7 @@ export default function AdminProducts() {
           imagePreviews={imagePreviews}
           setImagePreviews={setImagePreviews}
           onClose={() => setShowForm(false)}
+          onDeleteAllImages={deleteAllImages}
         />
       )}
 
@@ -235,8 +276,9 @@ export default function AdminProducts() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onClone={handleClone}
-        onDeleteAllImages={deleteAllImages}
         loading={loading}
+        onDownloadCsv={downloadCsvTemplate}
+        onUploadCsv={uploadBulkCsv}
       />
     </div>
   );

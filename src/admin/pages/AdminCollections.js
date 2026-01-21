@@ -49,7 +49,7 @@ export default function AdminCollections() {
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [productLoading, setProductLoading] = useState(false);
 
-  /* SEARCH STATE */
+  /* SEARCH */
   const [searchTerm, setSearchTerm] = useState("");
 
   /* ================= FETCH ================= */
@@ -181,9 +181,7 @@ export default function AdminCollections() {
       setProductLoading(true);
       await api.post(
         `/admin/collections/${activeCollection.id}/detach-products`,
-        {
-          product_ids: [productId],
-        }
+        { product_ids: [productId] }
       );
       await refreshActiveCollection(activeCollection.id);
       await fetchCollections();
@@ -192,7 +190,7 @@ export default function AdminCollections() {
     }
   };
 
-  /* ================= FILTER PRODUCTS ================= */
+  /* ================= FILTER ================= */
   const filteredProducts = products
     .filter((p) => !activeCollection?.products?.some((ap) => ap.id === p.id))
     .filter((p) => {
@@ -207,6 +205,42 @@ export default function AdminCollections() {
   /* ================= UI ================= */
   return (
     <div className="container">
+      {/* ===== INTERNAL CSS FOR MIN LINES ===== */}
+      <style>{`
+        .text-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          line-height: 1.4;
+          max-height: 2.8em;
+          word-break: break-word;
+        }
+
+        @media (max-width: 768px) {
+          table thead {
+            display: none;
+          }
+          table tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 10px;
+          }
+          table tbody td {
+            display: flex;
+            justify-content: space-between;
+            border: none;
+            padding: 6px 0;
+          }
+          table tbody td::before {
+            content: attr(data-label);
+            font-weight: 600;
+          }
+        }
+      `}</style>
+
       <div className="d-flex justify-content-between mb-3">
         <h3>Collections</h3>
         <button className="btn btn-primary" onClick={openCreateForm}>
@@ -214,122 +248,7 @@ export default function AdminCollections() {
         </button>
       </div>
 
-      {/* FORM */}
-      {showForm && (
-        <div className="card mb-4">
-          <div className="card-body">
-            <h5>{editId ? "Edit" : "Create"} Collection</h5>
-
-            <form onSubmit={handleSubmit} className="row g-3">
-              <div className="col-md-6">
-                <label>Name</label>
-                <input
-                  className="form-control"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="col-md-6">
-                <label>Slug</label>
-                <input
-                  className="form-control"
-                  value={form.slug}
-                  onChange={(e) => setForm({ ...form, slug: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="col-md-6">
-                <label>Banner Image</label>
-                <input
-                  type="file"
-                  className="form-control"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const f = e.target.files[0];
-                    setBannerFile(f);
-                    setBannerPreview(URL.createObjectURL(f));
-                  }}
-                />
-                {bannerPreview && (
-                  <img
-                    src={bannerPreview}
-                    className="mt-2 rounded"
-                    style={{ width: "100%", height: 120, objectFit: "cover" }}
-                  />
-                )}
-              </div>
-
-              <div className="col-md-6">
-                <label>Thumbnail Image</label>
-                <input
-                  type="file"
-                  className="form-control"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const f = e.target.files[0];
-                    setThumbFile(f);
-                    setThumbPreview(URL.createObjectURL(f));
-                  }}
-                />
-                {thumbPreview && (
-                  <img
-                    src={thumbPreview}
-                    className="mt-2 rounded"
-                    style={{ width: 120, height: 120, objectFit: "cover" }}
-                  />
-                )}
-              </div>
-
-              <div className="col-md-3">
-                <input
-                  type="checkbox"
-                  checked={form.status}
-                  onChange={(e) =>
-                    setForm({ ...form, status: e.target.checked })
-                  }
-                />{" "}
-                Active
-              </div>
-
-              <div className="col-md-3">
-                <input
-                  type="checkbox"
-                  checked={form.is_featured}
-                  onChange={(e) =>
-                    setForm({ ...form, is_featured: e.target.checked })
-                  }
-                />{" "}
-                Featured
-              </div>
-
-              <div>
-                <button className="btn btn-success" disabled={saving}>
-                  {saving ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" />
-                      Saving...
-                    </>
-                  ) : (
-                    "Save"
-                  )}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary ms-2"
-                  onClick={() => setShowForm(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* TABLE */}
+      {/* ================= TABLE ================= */}
       <div className="card">
         <div className="card-body">
           {loadingList ? (
@@ -338,7 +257,7 @@ export default function AdminCollections() {
             <table className="table table-bordered">
               <thead>
                 <tr>
-                  <th>#</th>
+                  <th>Sr No</th>
                   <th>Name</th>
                   <th>Status</th>
                   <th>Products</th>
@@ -348,10 +267,18 @@ export default function AdminCollections() {
               <tbody>
                 {collections.map((c, i) => (
                   <tr key={c.id}>
-                    <td>{i + 1}</td>
-                    <td>{c.name}</td>
-                    <td>{c.status ? "Active" : "Inactive"}</td>
-                    <td>
+                    <td data-label="Sr No">{i + 1}</td>
+
+                    {/* ✅ CLAMPED NAME */}
+                    <td data-label="Name">
+                      <div className="text-clamp-2">{c.name}</div>
+                    </td>
+
+                    <td data-label="Status">
+                      {c.status ? "Active" : "Inactive"}
+                    </td>
+
+                    <td data-label="Products">
                       <button
                         className="btn btn-sm btn-info"
                         onClick={() => openProductModal(c)}
@@ -359,7 +286,8 @@ export default function AdminCollections() {
                         Manage Products
                       </button>
                     </td>
-                    <td>
+
+                    <td data-label="Actions">
                       <button
                         className="btn btn-sm btn-warning me-2"
                         onClick={() => openEditForm(c)}
@@ -381,7 +309,7 @@ export default function AdminCollections() {
         </div>
       </div>
 
-      {/* MODAL */}
+      {/* ================= MODAL (UNCHANGED) ================= */}
       {showModal && activeCollection && (
         <div className="modal d-block bg-dark bg-opacity-50">
           <div className="modal-dialog modal-lg">
@@ -424,7 +352,6 @@ export default function AdminCollections() {
                 <hr />
 
                 <h6>Attach Products</h6>
-                {/* ===== SEARCH BAR ===== */}
                 <input
                   type="text"
                   placeholder="Search by name, category, sub-category..."
@@ -449,8 +376,6 @@ export default function AdminCollections() {
                   {filteredProducts.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.product_name}
-                      {p.category_name ? ` — ${p.category_name}` : ""}
-                      {p.sub_category_name ? ` / ${p.sub_category_name}` : ""}
                     </option>
                   ))}
                 </select>
