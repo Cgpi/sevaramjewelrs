@@ -18,7 +18,7 @@ export default function ProfilePage() {
     }
 
     axios
-      .get("https://sevaramjewellers.com/api/profile", {
+      .get("https://sevaramjewellers.com/sevaramjwellers/api/profile", {
         headers: {
           "X-Authorization": token,
           Accept: "application/json",
@@ -40,7 +40,7 @@ export default function ProfilePage() {
     setLoading(true);
     try {
       const res = await axios.put(
-        "https://sevaramjewellers.com/api/profile",
+        "https://sevaramjewellers.com/sevaramjwellers/api/profile",
         { name: user.name },
         {
           headers: {

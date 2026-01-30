@@ -22,8 +22,8 @@ export default function Auth() {
 
     const url =
       mode === "login"
-        ? "https://sevaramjewellers.com/api/login"
-        : "https://sevaramjewellers.com/api/register";
+        ? "https://sevaramjewellers.com/sevaramjwellers/api/login"
+        : "https://sevaramjewellers.com/sevaramjwellers/api/register";
 
     const payload =
       mode === "login"

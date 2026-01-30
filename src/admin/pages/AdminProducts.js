@@ -3,7 +3,7 @@ import axios from "axios";
 import AdminProductForm from "./AdminProductForm";
 import AdminProductTable from "./AdminProductTable";
 
-const BASE_URL = "https://sevaramjewellers.com/api";
+const BASE_URL = "https://sevaramjewellers.com/sevaramjwellers/api";
 
 export default function AdminProducts() {
   const token = localStorage.getItem("admin_token");

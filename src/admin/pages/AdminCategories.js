@@ -1,7 +1,7 @@
 // import React, { useEffect, useState } from "react";
 // import axios from "axios";
 
-// const BASE_URL = "https://sevaramjewellers.com/api";
+// const BASE_URL = "https://sevaramjewellers.com/sevaramjwellers/api";
 // const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2 MB
 
 // export default function AdminCategories() {
@@ -406,7 +406,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const BASE_URL = "https://sevaramjewellers.com/api";
+const BASE_URL = "https://sevaramjewellers.com/sevaramjwellers/api";
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2 MB
 
 /* ================= LOADER ================= */

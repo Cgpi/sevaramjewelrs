@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const BASE_URL = "https://sevaramjewellers.com/api";
+const BASE_URL = "https://sevaramjewellers.com/sevaramjwellers/api";
 
 /* ===== LOADER ===== */
 const Loader = ({ text }) => (

@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const BASE_URL = "https://sevaramjewellers.com/api";
+const BASE_URL = "https://sevaramjewellers.com/sevaramjwellers/api";
 const BASE_ASSET_URL = BASE_URL.replace("/api", "");
 
 /* ================= LOADER ================= */
 const Loader = ({ text = "Loading..." }) => (
   <div className="d-flex justify-content-center align-items-center py-4">
-    <div className="spinner-border text-primary me-2" role="status" />
+    <div className="spinner-border text-primary me-2" />
     <strong>{text}</strong>
   </div>
 );
@@ -43,13 +43,11 @@ export default function AdminCollections() {
   const [loadingList, setLoadingList] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  /* MODAL STATES */
+  /* MODAL */
   const [showModal, setShowModal] = useState(false);
   const [activeCollection, setActiveCollection] = useState(null);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [productLoading, setProductLoading] = useState(false);
-
-  /* SEARCH */
   const [searchTerm, setSearchTerm] = useState("");
 
   /* ================= FETCH ================= */
@@ -57,7 +55,7 @@ export default function AdminCollections() {
     try {
       setLoadingList(true);
       const res = await api.get("/admin/collections");
-      setCollections(Array.isArray(res.data) ? res.data : []);
+      setCollections(res.data || []);
     } finally {
       setLoadingList(false);
     }
@@ -94,10 +92,10 @@ export default function AdminCollections() {
     });
 
     setBannerPreview(
-      c.banner_image ? `${BASE_ASSET_URL}/${c.banner_image}` : null
+      c.banner_image ? `${BASE_ASSET_URL}/${c.banner_image}` : null,
     );
     setThumbPreview(
-      c.thumbnail_image ? `${BASE_ASSET_URL}/${c.thumbnail_image}` : null
+      c.thumbnail_image ? `${BASE_ASSET_URL}/${c.thumbnail_image}` : null,
     );
 
     setShowForm(true);
@@ -121,7 +119,7 @@ export default function AdminCollections() {
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) =>
-        fd.append(k, typeof v === "boolean" ? (v ? 1 : 0) : v)
+        fd.append(k, typeof v === "boolean" ? (v ? 1 : 0) : v),
       );
 
       if (bannerFile) fd.append("banner_image", bannerFile);
@@ -170,7 +168,6 @@ export default function AdminCollections() {
       await refreshActiveCollection(activeCollection.id);
       await fetchCollections();
       setSelectedProducts([]);
-      setSearchTerm("");
     } finally {
       setProductLoading(false);
     }
@@ -181,7 +178,7 @@ export default function AdminCollections() {
       setProductLoading(true);
       await api.post(
         `/admin/collections/${activeCollection.id}/detach-products`,
-        { product_ids: [productId] }
+        { product_ids: [productId] },
       );
       await refreshActiveCollection(activeCollection.id);
       await fetchCollections();
@@ -190,69 +187,110 @@ export default function AdminCollections() {
     }
   };
 
-  /* ================= FILTER ================= */
   const filteredProducts = products
     .filter((p) => !activeCollection?.products?.some((ap) => ap.id === p.id))
-    .filter((p) => {
-      const term = searchTerm.toLowerCase();
-      return (
-        p.product_name.toLowerCase().includes(term) ||
-        p.category_name?.toLowerCase().includes(term) ||
-        p.sub_category_name?.toLowerCase().includes(term)
-      );
-    });
+    .filter((p) =>
+      p.product_name.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
 
   /* ================= UI ================= */
   return (
     <div className="container">
-      {/* ===== INTERNAL CSS FOR MIN LINES ===== */}
-      <style>{`
-        .text-clamp-2 {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-          line-height: 1.4;
-          max-height: 2.8em;
-          word-break: break-word;
-        }
+      {/* ===== FORM (CREATE / UPDATE) ===== */}
+      {showForm && (
+        <div className="card mb-3">
+          <div className="card-body">
+            <h5>{editId ? "Update Collection" : "Add Collection"}</h5>
 
-        @media (max-width: 768px) {
-          table thead {
-            display: none;
-          }
-          table tbody tr {
-            display: block;
-            margin-bottom: 1rem;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 10px;
-          }
-          table tbody td {
-            display: flex;
-            justify-content: space-between;
-            border: none;
-            padding: 6px 0;
-          }
-          table tbody td::before {
-            content: attr(data-label);
-            font-weight: 600;
-          }
-        }
-      `}</style>
+            <form onSubmit={handleSubmit}>
+              <input
+                className="form-control mb-2"
+                placeholder="Name"
+                value={form.name}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    name: e.target.value,
+                    slug: e.target.value.toLowerCase().replace(/\s+/g, "-"),
+                  })
+                }
+                required
+              />
 
-      <div className="d-flex justify-content-between mb-3">
+              <input
+                className="form-control mb-2"
+                placeholder="Slug"
+                value={form.slug}
+                onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                required
+              />
+
+              <div className="form-check mb-2">
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  checked={form.status}
+                  onChange={(e) =>
+                    setForm({ ...form, status: e.target.checked })
+                  }
+                />
+                <label className="form-check-label">Active</label>
+              </div>
+
+              <div className="form-check mb-2">
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  checked={form.is_featured}
+                  onChange={(e) =>
+                    setForm({ ...form, is_featured: e.target.checked })
+                  }
+                />
+                <label className="form-check-label">Featured</label>
+              </div>
+
+              <input
+                type="file"
+                className="form-control mb-2"
+                onChange={(e) => {
+                  setBannerFile(e.target.files[0]);
+                  setBannerPreview(URL.createObjectURL(e.target.files[0]));
+                }}
+              />
+              {bannerPreview && <img src={bannerPreview} height="60" alt="" />}
+
+              <div className="mt-3 d-flex gap-2">
+                <button className="btn btn-success" disabled={saving}>
+                  {saving ? "Saving..." : editId ? "Update" : "Create"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowForm(false);
+                    resetForm();
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===== LIST ===== */}
+      <div className="d-flex justify-content-between mb-2">
         <h3>Collections</h3>
         <button className="btn btn-primary" onClick={openCreateForm}>
           + Add Collection
         </button>
       </div>
 
-      {/* ================= TABLE ================= */}
       <div className="card">
         <div className="card-body">
           {loadingList ? (
-            <Loader text="Loading collections..." />
+            <Loader />
           ) : (
             <table className="table table-bordered">
               <thead>
@@ -267,27 +305,18 @@ export default function AdminCollections() {
               <tbody>
                 {collections.map((c, i) => (
                   <tr key={c.id}>
-                    <td data-label="Sr No">{i + 1}</td>
-
-                    {/* ✅ CLAMPED NAME */}
-                    <td data-label="Name">
-                      <div className="text-clamp-2">{c.name}</div>
-                    </td>
-
-                    <td data-label="Status">
-                      {c.status ? "Active" : "Inactive"}
-                    </td>
-
-                    <td data-label="Products">
+                    <td>{i + 1}</td>
+                    <td>{c.name}</td>
+                    <td>{c.status ? "Active" : "Inactive"}</td>
+                    <td>
                       <button
                         className="btn btn-sm btn-info"
                         onClick={() => openProductModal(c)}
                       >
-                        Manage Products
+                        Manage
                       </button>
                     </td>
-
-                    <td data-label="Actions">
+                    <td>
                       <button
                         className="btn btn-sm btn-warning me-2"
                         onClick={() => openEditForm(c)}
@@ -309,19 +338,13 @@ export default function AdminCollections() {
         </div>
       </div>
 
-      {/* ================= MODAL (UNCHANGED) ================= */}
+      {/* ===== MODAL ===== */}
       {showModal && activeCollection && (
         <div className="modal d-block bg-dark bg-opacity-50">
           <div className="modal-dialog modal-lg">
-            <div className="modal-content position-relative">
-              {productLoading && (
-                <div className="position-absolute w-100 h-100 bg-white bg-opacity-75 d-flex justify-content-center align-items-center">
-                  <Loader text="Updating products..." />
-                </div>
-              )}
-
+            <div className="modal-content">
               <div className="modal-header">
-                <h5>Manage Products – {activeCollection.name}</h5>
+                <h5>{activeCollection.name}</h5>
                 <button
                   className="btn-close"
                   onClick={() => setShowModal(false)}
@@ -329,33 +352,23 @@ export default function AdminCollections() {
               </div>
 
               <div className="modal-body">
-                <h6>Attached Products</h6>
-                {activeCollection.products?.length ? (
-                  activeCollection.products.map((p) => (
-                    <div
-                      key={p.id}
-                      className="d-flex justify-content-between mb-1"
+                {activeCollection.products?.map((p) => (
+                  <div key={p.id} className="d-flex justify-content-between">
+                    {p.product_name}
+                    <button
+                      className="btn btn-sm btn-outline-danger"
+                      onClick={() => detachProduct(p.id)}
                     >
-                      {p.product_name}
-                      <button
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={() => detachProduct(p.id)}
-                      >
-                        Detach
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-muted">No products attached</p>
-                )}
+                      Detach
+                    </button>
+                  </div>
+                ))}
 
                 <hr />
 
-                <h6>Attach Products</h6>
                 <input
-                  type="text"
-                  placeholder="Search by name, category, sub-category..."
                   className="form-control mb-2"
+                  placeholder="Search products..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -363,15 +376,14 @@ export default function AdminCollections() {
                 <select
                   multiple
                   className="form-control"
-                  value={selectedProducts}
+                  style={{ height: 200 }}
                   onChange={(e) =>
                     setSelectedProducts(
                       Array.from(e.target.selectedOptions, (o) =>
-                        Number(o.value)
-                      )
+                        Number(o.value),
+                      ),
                     )
                   }
-                  style={{ height: 200 }}
                 >
                   {filteredProducts.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -382,7 +394,6 @@ export default function AdminCollections() {
 
                 <button
                   className="btn btn-success mt-2"
-                  disabled={!selectedProducts.length || productLoading}
                   onClick={attachProducts}
                 >
                   Attach Selected

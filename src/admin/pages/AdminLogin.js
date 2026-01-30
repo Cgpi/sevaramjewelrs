@@ -3,7 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-const BASE_URL = "https://sevaramjewellers.com/api/admin";
+const BASE_URL = "https://sevaramjewellers.com/sevaramjwellers/api/admin";
 
 export default function AdminLogin() {
   const navigate = useNavigate();

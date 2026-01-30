@@ -3,7 +3,7 @@ import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
-const BASE_URL = "https://sevaramjewellers.com/api";
+const BASE_URL = "https://sevaramjewellers.com/sevaramjwellers/api";
 
 export default function HeaderNavbar() {
   const [categories, setCategories] = useState([]);

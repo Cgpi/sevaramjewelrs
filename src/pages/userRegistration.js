@@ -34,10 +34,10 @@ export default function UserRegistration() {
     setForm({ ...form, [e.target.name]: e.target.value });
 
   const apiMap = {
-    login: "https://sevaramjewellers.com/api/login",
-    register: "https://sevaramjewellers.com/api/register",
-    forgot: "https://sevaramjewellers.com/api/forgot-password",
-    reset: "https://sevaramjewellers.com/api/reset-password",
+    login: "https://sevaramjewellers.com/sevaramjwellers/api/login",
+    register: "https://sevaramjewellers.com/sevaramjwellers/api/register",
+    forgot: "https://sevaramjewellers.com/sevaramjwellers/api/forgot-password",
+    reset: "https://sevaramjewellers.com/sevaramjwellers/api/reset-password",
   };
 
   // 🔹 OTP Countdown Effect

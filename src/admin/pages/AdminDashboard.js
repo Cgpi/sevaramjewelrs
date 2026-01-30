@@ -17,6 +17,9 @@ import AdminCollections from "./AdminCollections";
 import AdminBanners from "./AdminBanners";
 import AdminCmsPages from "./AdminCmsPages";
 import AdminCoupons from "./AdminCoupons";
+import AdminOrders from "./AdminOrders";
+import AdminFinance from "./AdminFinance";
+import AdminBlogs from "./AdminBlogs";
 
 export default function AdminDashboard() {
   const location = useLocation();
@@ -34,13 +37,13 @@ export default function AdminDashboard() {
   const logout = async () => {
     try {
       await axios.post(
-        "https://sevaramjewellers.com/api/admin/logout",
+        "https://sevaramjewellers.com/sevaramjwellers/api/admin/logout",
         {},
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
           },
-        }
+        },
       );
     } catch {}
 
@@ -340,6 +343,39 @@ export default function AdminDashboard() {
             </Link>
           </li>
 
+          <li className="nav-item">
+            <Link
+              to="/admin/orders"
+              className={`nav-link ${
+                location.pathname === "/admin/orders" ? "active-link" : ""
+              }`}
+            >
+              Orders
+            </Link>
+          </li>
+
+          <li className="nav-item">
+            <Link
+              to="/admin/payments"
+              className={`nav-link ${
+                location.pathname === "/admin/payments" ? "active-link" : ""
+              }`}
+            >
+              Payments
+            </Link>
+          </li>
+
+          <li className="nav-item">
+            <Link
+              to="/admin/blog-posts"
+              className={`nav-link ${
+                location.pathname === "/admin/blog-posts" ? "active-link" : ""
+              }`}
+            >
+              Blog Posts
+            </Link>
+          </li>
+
           <li className="nav-item mt-4">
             <button onClick={logout} className="btn logout-btn w-100">
               Logout
@@ -390,7 +426,9 @@ export default function AdminDashboard() {
           <Route path="/banners" element={<AdminBanners />} />
           <Route path="/cms-pages" element={<AdminCmsPages />} />
           <Route path="/coupons" element={<AdminCoupons />} />
-          
+          <Route path="/orders" element={<AdminOrders />} />
+          <Route path="/payments" element={<AdminFinance />} />
+          <Route path="/blog-posts" element={<AdminBlogs />} />
 
           <Route path="*" element={<Navigate to="/admin/dashboard" />} />
         </Routes>
