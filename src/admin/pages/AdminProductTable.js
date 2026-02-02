@@ -7,7 +7,8 @@ export default function AdminProductTable({
   onEdit,
   onDelete,
   onClone,
-  onDeleteAllImages,
+  onUpdateStock, // ✅ ADD
+  onViewStockHistory,
   onDownloadCsv,
   onUploadCsv,
   loading = false,
@@ -18,6 +19,11 @@ export default function AdminProductTable({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [csvFile, setCsvFile] = useState(null);
+  const [stockModal, setStockModal] = useState(false);
+  const [historyModal, setHistoryModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [stockChange, setStockChange] = useState("");
+  const [history, setHistory] = useState([]);
 
   const getCategoryName = (id) =>
     categories.find((c) => c.id === id)?.name || "-";
@@ -83,6 +89,31 @@ export default function AdminProductTable({
     }
 
     return rangeWithDots;
+  };
+
+  const openStockModal = (product) => {
+    setSelectedProduct(product);
+    setStockChange("");
+    setStockModal(true);
+  };
+
+  const openHistoryModal = async (product) => {
+    setSelectedProduct(product); // the clicked product
+    setHistoryModal(true);
+
+    try {
+      const res = await onViewStockHistory(); // fetch all history from backend
+      const allHistory = res.data.data || [];
+
+      // ✅ Filter on frontend if a specific product is selected
+      const filteredHistory = product
+        ? allHistory.filter((h) => h.product_id === product.id)
+        : allHistory; // show all if product is null
+
+      setHistory(filteredHistory);
+    } catch {
+      alert("Failed to load history");
+    }
   };
 
   return (
@@ -160,7 +191,7 @@ export default function AdminProductTable({
               {subCategories
                 .filter(
                   (s) =>
-                    !filterCategory || String(s.category_id) === filterCategory
+                    !filterCategory || String(s.category_id) === filterCategory,
                 )
                 .map((s) => (
                   <option key={s.id} value={s.id}>
@@ -215,8 +246,9 @@ export default function AdminProductTable({
                 <th>Category</th>
                 <th>Sub Category</th>
                 <th className="text-end">Price</th>
-                <th className="text-center">Stock</th>
-                <th className="text-center">Actions</th>
+
+                <th className="text-center">Stock </th>
+                <th className="text-center">Actions </th>
               </tr>
             </thead>
             <tbody>
@@ -250,29 +282,101 @@ export default function AdminProductTable({
                     <td>{getCategoryName(p.category_id)}</td>
                     <td>{getSubCategoryName(p.sub_category_id)}</td>
                     <td className="text-end">₹{p.base_price}</td>
-                    <td className="text-center">{p.stock_quantity}</td>
+                    <td className="text-center">
+                      <div className="d-flex align-items-center justify-content-center gap-1">
+                        <button
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => onUpdateStock(p.id, -1)}
+                          disabled={loading || p.stock_quantity <= 0}
+                        >
+                          -
+                        </button>
+
+                        {/* Stock Input */}
+                        <input
+                          type="number"
+                          value={
+                            stockChange[p.id] !== undefined
+                              ? stockChange[p.id]
+                              : p.stock_quantity
+                          }
+                          onChange={(e) =>
+                            setStockChange((prev) => ({
+                              ...prev,
+                              [p.id]: e.target.value,
+                            }))
+                          }
+                          onBlur={() => {
+                            // Reset input to current stock if empty
+                            if (
+                              stockChange[p.id] === "" ||
+                              stockChange[p.id] === null ||
+                              isNaN(Number(stockChange[p.id]))
+                            ) {
+                              setStockChange((prev) => ({
+                                ...prev,
+                                [p.id]: p.stock_quantity,
+                              }));
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              const change =
+                                Number(stockChange[p.id]) - p.stock_quantity;
+                              if (!isNaN(change) && change !== 0) {
+                                onUpdateStock(p.id, change);
+                              }
+                              // Reset input to latest stock after update
+                              setStockChange((prev) => ({
+                                ...prev,
+                                [p.id]: p.stock_quantity,
+                              }));
+                            }
+                          }}
+                          placeholder="Stock"
+                          style={{ width: 70, textAlign: "center" }}
+                          disabled={loading}
+                          className="form-control form-control-sm"
+                        />
+
+                        {/* + Button */}
+                        <button
+                          className="btn btn-sm btn-outline-success"
+                          onClick={() => onUpdateStock(p.id, 1)}
+                          disabled={loading}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </td>
                     <td className="text-center">
                       <div className="d-flex flex-wrap justify-content-center gap-1">
                         <button
                           className="btn btn-sm btn-warning"
                           onClick={() => onEdit(p)}
-                          disabled={loading}
                         >
                           Edit
                         </button>
+
                         <button
                           className="btn btn-sm btn-danger"
                           onClick={() => onDelete(p.id)}
-                          disabled={loading}
                         >
                           Delete
                         </button>
+
                         <button
                           className="btn btn-sm btn-secondary"
                           onClick={() => onClone(p.id)}
-                          disabled={loading}
                         >
                           Clone
+                        </button>
+
+                        <button
+                          className="btn btn-sm btn-info"
+                          onClick={() => openHistoryModal(p)}
+                        >
+                          History
                         </button>
                       </div>
                     </td>
@@ -313,7 +417,7 @@ export default function AdminProductTable({
                 >
                   {p}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -323,6 +427,112 @@ export default function AdminProductTable({
             >
               Next
             </button>
+          </div>
+        )}
+
+        {stockModal && (
+          <div
+            className="modal show d-block"
+            style={{ background: "#00000088" }}
+          >
+            <div className="modal-dialog">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5>
+                    Stock History –{" "}
+                    {selectedProduct?.product_name || "All Products"}
+                  </h5>
+
+                  <button
+                    className="btn-close"
+                    onClick={() => setStockModal(false)}
+                  />
+                </div>
+
+                <div className="modal-body">
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="+ Add / - Reduce stock"
+                    value={stockChange}
+                    onChange={(e) => setStockChange(e.target.value)}
+                  />
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setStockModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      onUpdateStock(selectedProduct.id, stockChange);
+                      setStockModal(false);
+                    }}
+                  >
+                    Update
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {historyModal && (
+          <div
+            className="modal show d-block"
+            style={{ background: "#00000088" }}
+          >
+            <div className="modal-dialog modal-lg">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5>
+                    Stock History –{" "}
+                    {selectedProduct?.product_name || "All Products"}
+                  </h5>
+
+                  <button
+                    className="btn-close"
+                    onClick={() => setHistoryModal(false)}
+                  />
+                </div>
+
+                <div className="modal-body">
+                  <table className="table table-bordered">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Product</th> {/* optional */}
+                        <th>Change</th>
+                        <th>Stock After</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {history.length === 0 ? (
+                        <tr>
+                          <td colSpan="4" className="text-center">
+                            No History
+                          </td>
+                        </tr>
+                      ) : (
+                        history.map((h, i) => (
+                          <tr key={i}>
+                            <td>{h.created_at}</td>
+                            <td>{h.product_name || `#${h.product_id}`}</td>{" "}
+                            {/* optional */}
+                            <td>{h.change}</td>
+                            <td>{h.stock_after}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

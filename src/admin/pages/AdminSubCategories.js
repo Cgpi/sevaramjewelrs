@@ -32,6 +32,7 @@ export default function AdminSubCategories() {
   };
 
   const [subCategories, setSubCategories] = useState([]);
+  const [filteredSubCategories, setFilteredSubCategories] = useState([]);
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState(emptyForm);
 
@@ -41,6 +42,18 @@ export default function AdminSubCategories() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  /* ============ SEARCH & PAGINATION ============ */
+  const [searchText, setSearchText] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+
+  const totalPages = Math.ceil(filteredSubCategories.length / perPage);
+
+  const paginatedSubCategories = filteredSubCategories.slice(
+    (currentPage - 1) * perPage,
+    currentPage * perPage,
+  );
+
   /* ================= FETCH ================= */
   const fetchSubCategories = async () => {
     try {
@@ -49,6 +62,7 @@ export default function AdminSubCategories() {
       setSubCategories(res.data?.data || []);
     } catch {
       alert("Failed to load sub-categories");
+      setSubCategories([]);
     } finally {
       setLoading(false);
     }
@@ -60,6 +74,7 @@ export default function AdminSubCategories() {
       setCategories(res.data?.data || []);
     } catch {
       alert("Failed to load categories");
+      setCategories([]);
     }
   };
 
@@ -67,6 +82,17 @@ export default function AdminSubCategories() {
     fetchSubCategories();
     fetchCategories();
   }, []);
+
+  /* ============ FILTER & SEARCH EFFECT ============ */
+  useEffect(() => {
+    const filtered = subCategories.filter(
+      (sub) =>
+        sub.name.toLowerCase().includes(searchText.toLowerCase()) ||
+        sub.category?.name.toLowerCase().includes(searchText.toLowerCase()),
+    );
+    setFilteredSubCategories(filtered);
+    setCurrentPage(1);
+  }, [searchText, subCategories]);
 
   /* ================= FORM ================= */
   const openCreateForm = () => {
@@ -165,6 +191,51 @@ export default function AdminSubCategories() {
     }
   };
 
+  /* ================= PAGINATION UI ================= */
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+
+    const pages = [];
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+
+    return (
+      <nav>
+        <ul className="pagination">
+          <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+            <button
+              className="page-link"
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            >
+              Previous
+            </button>
+          </li>
+          {pages.map((p) => (
+            <li
+              key={p}
+              className={`page-item ${currentPage === p ? "active" : ""}`}
+            >
+              <button className="page-link" onClick={() => setCurrentPage(p)}>
+                {p}
+              </button>
+            </li>
+          ))}
+          <li
+            className={`page-item ${
+              currentPage === totalPages ? "disabled" : ""
+            }`}
+          >
+            <button
+              className="page-link"
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+            >
+              Next
+            </button>
+          </li>
+        </ul>
+      </nav>
+    );
+  };
+
   /* ================= UI ================= */
   return (
     <div className="container mt-3">
@@ -173,6 +244,32 @@ export default function AdminSubCategories() {
         <button className="btn btn-primary" onClick={openCreateForm}>
           + Add Sub-Category
         </button>
+      </div>
+
+      {/* ================= SEARCH & PER PAGE ================= */}
+      <div className="row mb-3">
+        <div className="col-md-6 mb-2">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Search sub-categories..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+        </div>
+        <div className="col-md-3 mb-2">
+          <select
+            className="form-select"
+            value={perPage}
+            onChange={(e) => setPerPage(Number(e.target.value))}
+          >
+            {[10, 25, 50, 100].map((num) => (
+              <option key={num} value={num}>
+                {num} per page
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* ================= FORM ================= */}
@@ -269,78 +366,83 @@ export default function AdminSubCategories() {
           {loading ? (
             <Loader text="Loading sub-categories..." />
           ) : (
-            <table className="table table-bordered align-middle">
-              <thead>
-                <tr>
-                  <th width="60">#</th>
-                  <th>Category</th>
-                  <th>Name</th>
-                  <th>Image</th>
-                  <th>Status</th>
-                  <th width="200">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {subCategories.length > 0 ? (
-                  subCategories.map((sub, i) => (
-                    <tr key={sub.id}>
-                      <td>{i + 1}</td>
-                      <td>{sub.category?.name}</td>
-                      <td>{sub.name}</td>
-                      <td>
-                        {sub.image_url ? (
-                          <img
-                            src={sub.image_url}
-                            alt={sub.name}
-                            style={{
-                              width: 60,
-                              height: 60,
-                              objectFit: "cover",
-                              borderRadius: 6,
-                            }}
-                          />
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td>
-                        {sub.status === 1 ? (
-                          <span className="badge bg-success">Active</span>
-                        ) : (
-                          <span className="badge bg-secondary">Inactive</span>
-                        )}
-                      </td>
-                      <td>
-                        <button
-                          className="btn btn-sm btn-warning me-2"
-                          onClick={() => openEditForm(sub)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn btn-sm btn-danger me-2"
-                          onClick={() => handleDelete(sub.id)}
-                        >
-                          Delete
-                        </button>
-                        <button
-                          className="btn btn-sm btn-secondary"
-                          onClick={() => toggleStatus(sub.id)}
-                        >
-                          Toggle
-                        </button>
+            <>
+              <table className="table table-bordered align-middle">
+                <thead>
+                  <tr>
+                    <th width="60">#</th>
+                    <th>Category</th>
+                    <th>Name</th>
+                    <th>Image</th>
+                    <th>Status</th>
+                    <th width="200">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedSubCategories.length > 0 ? (
+                    paginatedSubCategories.map((sub, i) => (
+                      <tr key={sub.id}>
+                        <td>{(currentPage - 1) * perPage + i + 1}</td>
+                        <td>{sub.category?.name}</td>
+                        <td>{sub.name}</td>
+                        <td>
+                          {sub.image_url ? (
+                            <img
+                              src={sub.image_url}
+                              alt={sub.name}
+                              style={{
+                                width: 60,
+                                height: 60,
+                                objectFit: "cover",
+                                borderRadius: 6,
+                              }}
+                            />
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td>
+                          {sub.status === 1 ? (
+                            <span className="badge bg-success">Active</span>
+                          ) : (
+                            <span className="badge bg-secondary">Inactive</span>
+                          )}
+                        </td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-warning me-2"
+                            onClick={() => openEditForm(sub)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-sm btn-danger me-2"
+                            onClick={() => handleDelete(sub.id)}
+                          >
+                            Delete
+                          </button>
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => toggleStatus(sub.id)}
+                          >
+                            Toggle
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6" className="text-center text-muted">
+                        No sub-categories found
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="text-center text-muted">
-                      No sub-categories found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+
+              {/* ================= PAGINATION ================= */}
+              {renderPagination()}
+            </>
           )}
         </div>
       </div>

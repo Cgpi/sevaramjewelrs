@@ -244,7 +244,7 @@
 //           font-weight: bold;
 //           color: #7a5c1e;
 //           text-align: left;
-//         } 
+//         }
 
 //         .cat-img {
 //           width: 50px;
@@ -436,12 +436,25 @@ export default function AdminCategories() {
   };
 
   const [categories, setCategories] = useState([]);
+  const [filteredCategories, setFilteredCategories] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editId, setEditId] = useState(null);
   const [showForm, setShowForm] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  /* ============ PAGINATION & SEARCH ============ */
+  const [searchText, setSearchText] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+
+  const totalPages = Math.ceil(filteredCategories.length / perPage);
+
+  const paginatedCategories = filteredCategories.slice(
+    (currentPage - 1) * perPage,
+    currentPage * perPage,
+  );
 
   /* ================= FETCH ================= */
   const fetchCategories = async () => {
@@ -460,6 +473,15 @@ export default function AdminCategories() {
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  /* ============ FILTER & SEARCH EFFECT ============ */
+  useEffect(() => {
+    const filtered = categories.filter((cat) =>
+      cat.name.toLowerCase().includes(searchText.toLowerCase()),
+    );
+    setFilteredCategories(filtered);
+    setCurrentPage(1); // Reset to first page on search
+  }, [searchText, categories]);
 
   /* ================= FORM ================= */
   const openCreateForm = () => {
@@ -558,6 +580,51 @@ export default function AdminCategories() {
     }
   };
 
+  /* ================= PAGINATION UI ================= */
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+
+    const pages = [];
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+
+    return (
+      <nav>
+        <ul className="pagination">
+          <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+            <button
+              className="page-link"
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            >
+              Previous
+            </button>
+          </li>
+          {pages.map((p) => (
+            <li
+              key={p}
+              className={`page-item ${currentPage === p ? "active" : ""}`}
+            >
+              <button className="page-link" onClick={() => setCurrentPage(p)}>
+                {p}
+              </button>
+            </li>
+          ))}
+          <li
+            className={`page-item ${
+              currentPage === totalPages ? "disabled" : ""
+            }`}
+          >
+            <button
+              className="page-link"
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+            >
+              Next
+            </button>
+          </li>
+        </ul>
+      </nav>
+    );
+  };
+
   /* ================= UI ================= */
   return (
     <div className="container mt-3">
@@ -566,6 +633,32 @@ export default function AdminCategories() {
         <button className="btn btn-primary" onClick={openCreateForm}>
           + Add Category
         </button>
+      </div>
+
+      {/* ================= SEARCH & PER PAGE ================= */}
+      <div className="row mb-3">
+        <div className="col-md-6 mb-2">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Search categories..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+        </div>
+        <div className="col-md-3 mb-2">
+          <select
+            className="form-select"
+            value={perPage}
+            onChange={(e) => setPerPage(Number(e.target.value))}
+          >
+            {[10, 25, 50, 100].map((num) => (
+              <option key={num} value={num}>
+                {num} per page
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* ================= FORM ================= */}
@@ -582,9 +675,7 @@ export default function AdminCategories() {
                 <input
                   className="form-control"
                   value={form.name}
-                  onChange={(e) =>
-                    setForm({ ...form, name: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
                   required
                 />
               </div>
@@ -645,76 +736,81 @@ export default function AdminCategories() {
           {loading ? (
             <Loader text="Loading categories..." />
           ) : (
-            <table className="table table-bordered align-middle">
-              <thead>
-                <tr>
-                  <th width="60">#</th>
-                  <th>Name</th>
-                  <th>Image</th>
-                  <th>Status</th>
-                  <th width="200">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {categories.length > 0 ? (
-                  categories.map((cat, i) => (
-                    <tr key={cat.id}>
-                      <td>{i + 1}</td>
-                      <td>{cat.name}</td>
-                      <td>
-                        {cat.image_url ? (
-                          <img
-                            src={cat.image_url}
-                            alt={cat.name}
-                            style={{
-                              width: 60,
-                              height: 60,
-                              objectFit: "cover",
-                              borderRadius: 6,
-                            }}
-                          />
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td>
-                        {cat.status === 1 ? (
-                          <span className="badge bg-success">Active</span>
-                        ) : (
-                          <span className="badge bg-secondary">Inactive</span>
-                        )}
-                      </td>
-                      <td>
-                        <button
-                          className="btn btn-sm btn-warning me-2"
-                          onClick={() => openEditForm(cat)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn btn-sm btn-danger me-2"
-                          onClick={() => handleDelete(cat.id)}
-                        >
-                          Delete
-                        </button>
-                        <button
-                          className="btn btn-sm btn-secondary"
-                          onClick={() => toggleStatus(cat.id)}
-                        >
-                          Toggle
-                        </button>
+            <>
+              <table className="table table-bordered align-middle">
+                <thead>
+                  <tr>
+                    <th width="60">#</th>
+                    <th>Name</th>
+                    <th>Image</th>
+                    <th>Status</th>
+                    <th width="200">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedCategories.length > 0 ? (
+                    paginatedCategories.map((cat, i) => (
+                      <tr key={cat.id}>
+                        <td>{(currentPage - 1) * perPage + i + 1}</td>
+                        <td>{cat.name}</td>
+                        <td>
+                          {cat.image_url ? (
+                            <img
+                              src={cat.image_url}
+                              alt={cat.name}
+                              style={{
+                                width: 60,
+                                height: 60,
+                                objectFit: "cover",
+                                borderRadius: 6,
+                              }}
+                            />
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td>
+                          {cat.status === 1 ? (
+                            <span className="badge bg-success">Active</span>
+                          ) : (
+                            <span className="badge bg-secondary">Inactive</span>
+                          )}
+                        </td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-warning me-2"
+                            onClick={() => openEditForm(cat)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-sm btn-danger me-2"
+                            onClick={() => handleDelete(cat.id)}
+                          >
+                            Delete
+                          </button>
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => toggleStatus(cat.id)}
+                          >
+                            Toggle
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="text-center text-muted">
+                        No categories found
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5" className="text-center text-muted">
-                      No categories found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+
+              {/* ================= PAGINATION ================= */}
+              {renderPagination()}
+            </>
           )}
         </div>
       </div>

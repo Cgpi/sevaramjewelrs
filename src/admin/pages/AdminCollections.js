@@ -50,6 +50,11 @@ export default function AdminCollections() {
   const [productLoading, setProductLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
+  /* ===== SEARCH & PAGINATION ===== */
+  const [searchText, setSearchText] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+
   /* ================= FETCH ================= */
   const fetchCollections = async () => {
     try {
@@ -75,6 +80,19 @@ export default function AdminCollections() {
     fetchCollections();
     fetchProducts();
   }, []);
+
+  /* ================= FILTERED & PAGINATED DATA ================= */
+  const filteredCollections = collections.filter(
+    (c) =>
+      c.name.toLowerCase().includes(searchText.toLowerCase()) ||
+      c.slug.toLowerCase().includes(searchText.toLowerCase()),
+  );
+
+  const totalPages = Math.ceil(filteredCollections.length / perPage);
+  const paginatedCollections = filteredCollections.slice(
+    (currentPage - 1) * perPage,
+    currentPage * perPage,
+  );
 
   /* ================= FORM ================= */
   const openCreateForm = () => {
@@ -111,7 +129,6 @@ export default function AdminCollections() {
     setThumbPreview(null);
   };
 
-  /* ================= SAVE ================= */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -142,7 +159,6 @@ export default function AdminCollections() {
     }
   };
 
-  /* ================= DELETE ================= */
   const handleDelete = async (id) => {
     if (!window.confirm("Delete collection?")) return;
     await api.delete(`/admin/collections/${id}`);
@@ -193,9 +209,77 @@ export default function AdminCollections() {
       p.product_name.toLowerCase().includes(searchTerm.toLowerCase()),
     );
 
+  /* ================= PAGINATION UI ================= */
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+    const pages = [];
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+
+    return (
+      <nav>
+        <ul className="pagination">
+          <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+            <button
+              className="page-link"
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            >
+              Previous
+            </button>
+          </li>
+          {pages.map((p) => (
+            <li
+              key={p}
+              className={`page-item ${currentPage === p ? "active" : ""}`}
+            >
+              <button className="page-link" onClick={() => setCurrentPage(p)}>
+                {p}
+              </button>
+            </li>
+          ))}
+          <li
+            className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}
+          >
+            <button
+              className="page-link"
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+            >
+              Next
+            </button>
+          </li>
+        </ul>
+      </nav>
+    );
+  };
+
   /* ================= UI ================= */
   return (
     <div className="container">
+      {/* ===== SEARCH & PER PAGE ===== */}
+      <div className="row mb-3 align-items-center">
+        <div className="col-md-6 mb-2">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Search collections..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+        </div>
+        <div className="col-md-3 mb-2">
+          <select
+            className="form-select"
+            value={perPage}
+            onChange={(e) => setPerPage(Number(e.target.value))}
+          >
+            {[10, 25, 50, 100].map((num) => (
+              <option key={num} value={num}>
+                {num} per page
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* ===== FORM (CREATE / UPDATE) ===== */}
       {showForm && (
         <div className="card mb-3">
@@ -292,48 +376,61 @@ export default function AdminCollections() {
           {loadingList ? (
             <Loader />
           ) : (
-            <table className="table table-bordered">
-              <thead>
-                <tr>
-                  <th>Sr No</th>
-                  <th>Name</th>
-                  <th>Status</th>
-                  <th>Products</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {collections.map((c, i) => (
-                  <tr key={c.id}>
-                    <td>{i + 1}</td>
-                    <td>{c.name}</td>
-                    <td>{c.status ? "Active" : "Inactive"}</td>
-                    <td>
-                      <button
-                        className="btn btn-sm btn-info"
-                        onClick={() => openProductModal(c)}
-                      >
-                        Manage
-                      </button>
-                    </td>
-                    <td>
-                      <button
-                        className="btn btn-sm btn-warning me-2"
-                        onClick={() => openEditForm(c)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => handleDelete(c.id)}
-                      >
-                        Delete
-                      </button>
-                    </td>
+            <>
+              <table className="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>Sr No</th>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Products</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {paginatedCollections.length > 0 ? (
+                    paginatedCollections.map((c, i) => (
+                      <tr key={c.id}>
+                        <td>{(currentPage - 1) * perPage + i + 1}</td>
+                        <td>{c.name}</td>
+                        <td>{c.status ? "Active" : "Inactive"}</td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-info"
+                            onClick={() => openProductModal(c)}
+                          >
+                            Manage
+                          </button>
+                        </td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-warning me-2"
+                            onClick={() => openEditForm(c)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => handleDelete(c.id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="text-center text-muted">
+                        No collections found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+
+              {/* ===== PAGINATION ===== */}
+              {renderPagination()}
+            </>
           )}
         </div>
       </div>

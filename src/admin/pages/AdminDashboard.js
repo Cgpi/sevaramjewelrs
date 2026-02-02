@@ -20,6 +20,7 @@ import AdminCoupons from "./AdminCoupons";
 import AdminOrders from "./AdminOrders";
 import AdminFinance from "./AdminFinance";
 import AdminBlogs from "./AdminBlogs";
+import AdminReports from "./AdminReports";
 
 export default function AdminDashboard() {
   const location = useLocation();

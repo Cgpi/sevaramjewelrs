@@ -37,6 +37,11 @@ export default function AdminCmsPages() {
   const [saving, setSaving] = useState(false);
   const [viewContent, setViewContent] = useState("");
 
+  /* ===== SEARCH & PAGINATION ===== */
+  const [searchText, setSearchText] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+
   /* ================= FETCH ================= */
   const fetchPages = async () => {
     try {
@@ -99,45 +104,104 @@ export default function AdminCmsPages() {
     fetchPages();
   };
 
+  /* ================= FILTER & PAGINATION ================= */
+  const filteredPages = pages.filter(
+    (p) =>
+      p.title.toLowerCase().includes(searchText.toLowerCase()) ||
+      p.slug.toLowerCase().includes(searchText.toLowerCase()),
+  );
+
+  const totalPages = Math.ceil(filteredPages.length / perPage);
+  const paginatedPages = filteredPages.slice(
+    (currentPage - 1) * perPage,
+    currentPage * perPage,
+  );
+
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+    const pagesArray = [];
+    for (let i = 1; i <= totalPages; i++) pagesArray.push(i);
+
+    return (
+      <nav>
+        <ul className="pagination justify-content-center mt-3">
+          <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+            <button
+              className="page-link"
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            >
+              Previous
+            </button>
+          </li>
+          {pagesArray.map((p) => (
+            <li
+              key={p}
+              className={`page-item ${currentPage === p ? "active" : ""}`}
+            >
+              <button className="page-link" onClick={() => setCurrentPage(p)}>
+                {p}
+              </button>
+            </li>
+          ))}
+          <li
+            className={`page-item ${
+              currentPage === totalPages ? "disabled" : ""
+            }`}
+          >
+            <button
+              className="page-link"
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+            >
+              Next
+            </button>
+          </li>
+        </ul>
+      </nav>
+    );
+  };
+
+  /* ================= UI ================= */
   return (
     <div className="container-fluid mt-3 px-2 px-md-4">
       <style>{`
-        /* ===== CONTENT SMALL COLUMN ===== */
-        .content-col {
-          width: 220px;
-          max-width: 220px;
-        }
-
-        .content-preview {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-          font-size: 13px;
-          line-height: 1.5;
-          color: #555;
-        }
-
-        /* ===== SCROLLABLE TABLE FOR SMALL SCREENS ===== */
-        .table-responsive-custom {
-          overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
-        }
-
-        table {
-          min-width: 900px;
-        }
+        .content-col { width: 220px; max-width: 220px; }
+        .content-preview { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; line-height: 1.5; color: #555; }
+        .table-responsive-custom { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table { min-width: 900px; }
       `}</style>
 
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h4>CMS Pages</h4>
-        <button className="btn btn-primary" onClick={openCreateForm}>
-          + Add Page
-        </button>
+      {/* ===== HEADER + SEARCH + PER PAGE ===== */}
+      <div className="row mb-3 align-items-center">
+        <div className="col-md-6 mb-2">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Search pages..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+        </div>
+        <div className="col-md-3 mb-2">
+          <select
+            className="form-select"
+            value={perPage}
+            onChange={(e) => setPerPage(Number(e.target.value))}
+          >
+            {[10, 25, 50, 100].map((num) => (
+              <option key={num} value={num}>
+                {num} per page
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="col-md-3 mb-2 text-end">
+          <button className="btn btn-primary" onClick={openCreateForm}>
+            + Add Page
+          </button>
+        </div>
       </div>
 
-      {/* FORM */}
+      {/* ===== FORM ===== */}
       {showForm && (
         <div className="card mb-4">
           <div className="card-body">
@@ -204,75 +268,88 @@ export default function AdminCmsPages() {
         </div>
       )}
 
-      {/* TABLE */}
+      {/* ===== TABLE ===== */}
       <div className="card">
         <div className="card-body table-responsive-custom">
           {loading ? (
             <Loader />
           ) : (
-            <table className="table table-bordered align-middle">
-              <thead>
-                <tr>
-                  <th width="60">Sr No</th>
-                  <th>Title</th>
-                  <th>Slug</th>
-                  <th width="90">Status</th>
-                  <th className="content-col">Content</th>
-                  <th width="150">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pages.map((p, i) => (
-                  <tr key={p.id}>
-                    <td>{i + 1}</td>
-                    <td>{p.title}</td>
-                    <td>{p.slug}</td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          p.is_active ? "bg-success" : "bg-secondary"
-                        }`}
-                      >
-                        {p.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="content-col">
-                      <div
-                        className="content-preview"
-                        dangerouslySetInnerHTML={{ __html: p.content }}
-                      />
-                      <button
-                        className="btn btn-link p-0"
-                        data-bs-toggle="modal"
-                        data-bs-target="#contentModal"
-                        onClick={() => setViewContent(p.content)}
-                      >
-                        View more
-                      </button>
-                    </td>
-                    <td>
-                      <button
-                        className="btn btn-sm btn-warning me-2"
-                        onClick={() => openEditForm(p)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => handleDelete(p.id)}
-                      >
-                        Delete
-                      </button>
-                    </td>
+            <>
+              <table className="table table-bordered align-middle">
+                <thead>
+                  <tr>
+                    <th width="60">Sr No</th>
+                    <th>Title</th>
+                    <th>Slug</th>
+                    <th width="90">Status</th>
+                    <th className="content-col">Content</th>
+                    <th width="150">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {paginatedPages.length > 0 ? (
+                    paginatedPages.map((p, i) => (
+                      <tr key={p.id}>
+                        <td>{(currentPage - 1) * perPage + i + 1}</td>
+                        <td>{p.title}</td>
+                        <td>{p.slug}</td>
+                        <td>
+                          <span
+                            className={`badge ${
+                              p.is_active ? "bg-success" : "bg-secondary"
+                            }`}
+                          >
+                            {p.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="content-col">
+                          <div
+                            className="content-preview"
+                            dangerouslySetInnerHTML={{ __html: p.content }}
+                          />
+                          <button
+                            className="btn btn-link p-0"
+                            data-bs-toggle="modal"
+                            data-bs-target="#contentModal"
+                            onClick={() => setViewContent(p.content)}
+                          >
+                            View more
+                          </button>
+                        </td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-warning me-2"
+                            onClick={() => openEditForm(p)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => handleDelete(p.id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6" className="text-center text-muted">
+                        No pages found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+
+              {/* ===== PAGINATION ===== */}
+              {renderPagination()}
+            </>
           )}
         </div>
       </div>
 
-      {/* VIEW CONTENT MODAL */}
+      {/* ===== VIEW CONTENT MODAL ===== */}
       <div className="modal fade" id="contentModal">
         <div className="modal-dialog modal-lg modal-dialog-scrollable">
           <div className="modal-content">

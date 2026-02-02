@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 
 const BASE_URL = "https://sevaramjewellers.com/sevaramjwellers/api";
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2 MB
 
 /* ===== LOADER ===== */
 const Loader = ({ text }) => (
@@ -16,7 +17,10 @@ export default function AdminBlogs() {
 
   const api = axios.create({
     baseURL: BASE_URL,
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
   });
 
   /* ===== STATES ===== */
@@ -24,7 +28,6 @@ export default function AdminBlogs() {
     title: "",
     short_description: "",
     content: "",
-    featured_image: "", // string only
     category: "",
     tags: "",
     author: "Admin",
@@ -32,6 +35,9 @@ export default function AdminBlogs() {
     seo_description: "",
     is_featured: false,
     status: "draft",
+
+    image: null, // 👈 NEW
+    preview: null, // 👈 NEW
   };
 
   const [blogs, setBlogs] = useState([]);
@@ -40,6 +46,11 @@ export default function AdminBlogs() {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  /* ===== SEARCH & PAGINATION ===== */
+  const [searchText, setSearchText] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
 
   /* ===== FETCH BLOGS ===== */
   const fetchBlogs = async () => {
@@ -73,7 +84,6 @@ export default function AdminBlogs() {
       title: b.title,
       short_description: b.short_description,
       content: b.content,
-      featured_image: b.featured_image || "", // string only
       category: b.category,
       tags: b.tags?.join(",") || "",
       author: b.author,
@@ -81,6 +91,10 @@ export default function AdminBlogs() {
       seo_description: b.seo_description,
       is_featured: b.is_featured,
       status: b.status,
+
+      preview: b.featured_image
+        ? `https://sevaramjewellers.com/sevaramjwellers/${b.featured_image}`
+        : null,
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -94,23 +108,60 @@ export default function AdminBlogs() {
     });
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      alert("Image must be less than 2 MB");
+      e.target.value = "";
+      return;
+    }
+
+    setForm({
+      ...form,
+      image: file,
+      preview: URL.createObjectURL(file),
+    });
+  };
+
   /* ===== SAVE BLOG ===== */
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       setSaving(true);
 
-      // Ensure featured_image is always string
-      const payload = {
-        ...form,
-        featured_image: form.featured_image || "",
-        tags: form.tags.split(",").map((t) => t.trim()),
-      };
+      const formData = new FormData();
+      formData.append("title", form.title);
+      formData.append("short_description", form.short_description);
+      formData.append("content", form.content);
+      formData.append("category", form.category);
+      formData.append("author", form.author);
+      formData.append("seo_title", form.seo_title);
+      formData.append("seo_description", form.seo_description);
+      formData.append("is_featured", form.is_featured ? 1 : 0);
+      formData.append("status", form.status);
 
+      // ✅ TAGS ARRAY
+      form.tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .forEach((tag, index) => {
+          formData.append(`tags[${index}]`, tag);
+        });
+
+      // ✅ IMAGE (only if changed)
+      if (form.image) {
+        formData.append("featured_image", form.image);
+      }
+
+      // ✅ THIS IS THE UPDATE FIX
       if (editId) {
-        await api.put(`/admin/blogs/${editId}`, payload);
+        formData.append("_method", "PUT");
+        await api.post(`/admin/blogs/${editId}`, formData);
       } else {
-        await api.post("/admin/blogs", payload);
+        await api.post("/admin/blogs", formData);
       }
 
       setShowForm(false);
@@ -119,7 +170,7 @@ export default function AdminBlogs() {
       fetchBlogs();
     } catch (err) {
       console.error(err);
-      alert("Failed to save blog");
+      alert(err?.response?.data?.message || "Failed to save blog");
     } finally {
       setSaving(false);
     }
@@ -158,14 +209,92 @@ export default function AdminBlogs() {
     }
   };
 
+  /* ===== FILTERED & PAGINATED DATA ===== */
+  const filteredBlogs = blogs.filter(
+    (b) =>
+      b.title.toLowerCase().includes(searchText.toLowerCase()) ||
+      b.category?.toLowerCase().includes(searchText.toLowerCase()),
+  );
+
+  const totalPages = Math.ceil(filteredBlogs.length / perPage);
+  const paginatedBlogs = filteredBlogs.slice(
+    (currentPage - 1) * perPage,
+    currentPage * perPage,
+  );
+
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+    const pages = [];
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+
+    return (
+      <nav>
+        <ul className="pagination">
+          <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+            <button
+              className="page-link"
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            >
+              Previous
+            </button>
+          </li>
+          {pages.map((p) => (
+            <li
+              key={p}
+              className={`page-item ${currentPage === p ? "active" : ""}`}
+            >
+              <button className="page-link" onClick={() => setCurrentPage(p)}>
+                {p}
+              </button>
+            </li>
+          ))}
+          <li
+            className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}
+          >
+            <button
+              className="page-link"
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+            >
+              Next
+            </button>
+          </li>
+        </ul>
+      </nav>
+    );
+  };
+
   /* ===== UI ===== */
   return (
     <div className="container">
-      <div className="d-flex justify-content-between mb-3">
-        <h3>Blogs</h3>
-        <button className="btn btn-primary" onClick={openCreate}>
-          + Add Blog
-        </button>
+      {/* ===== SEARCH & PER PAGE ===== */}
+      <div className="row mb-3 align-items-center">
+        <div className="col-md-6 mb-2">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Search blogs..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+        </div>
+        <div className="col-md-3 mb-2">
+          <select
+            className="form-select"
+            value={perPage}
+            onChange={(e) => setPerPage(Number(e.target.value))}
+          >
+            {[10, 25, 50, 100].map((num) => (
+              <option key={num} value={num}>
+                {num} per page
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="col-md-3 mb-2 text-end">
+          <button className="btn btn-primary" onClick={openCreate}>
+            + Add Blog
+          </button>
+        </div>
       </div>
 
       {/* ===== FORM ===== */}
@@ -204,14 +333,31 @@ export default function AdminBlogs() {
                   />
                 </div>
                 <div className="col-md-6">
-                  <label>Featured Image (string URL or filename)</label>
+                  <label>Featured Image</label>
                   <input
+                    type="file"
                     className="form-control"
-                    name="featured_image"
-                    value={form.featured_image}
-                    onChange={handleChange}
+                    accept="image/*"
+                    required={!editId}
+                    onChange={handleImageChange}
                   />
+                  {form.preview && (
+                    <div className="col-md-12">
+                      <img
+                        src={form.preview}
+                        alt="Preview"
+                        style={{
+                          width: 80,
+                          height: 80,
+                          objectFit: "cover",
+                          borderRadius: 6,
+                          border: "1px solid #ccc",
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
+
                 <div className="col-md-4 d-flex align-items-center mt-2">
                   <input
                     type="checkbox"
@@ -278,69 +424,71 @@ export default function AdminBlogs() {
           {loading ? (
             <Loader text="Loading blogs..." />
           ) : (
-            <table className="table table-bordered">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Title</th>
-                  <th>Category</th>
-                  <th>Status</th>
-                  <th>Featured</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {blogs.length > 0 ? (
-                  blogs.map((b, i) => (
-                    <tr key={b.id}>
-                      <td data-label="#">{i + 1}</td>
-                      <td data-label="Title">{b.title}</td>
-                      <td data-label="Category">{b.category}</td>
-                      <td data-label="Status">{b.status}</td>
-                      <td data-label="Featured">
-                        {b.is_featured ? "Yes" : "No"}
-                      </td>
-                      <td data-label="Actions">
-                        <button
-                          className="btn btn-sm btn-warning me-2"
-                          onClick={() => openEdit(b)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn btn-sm btn-danger me-2"
-                          onClick={() => handleDelete(b.id)}
-                        >
-                          Delete
-                        </button>
-                        <button
-                          className="btn btn-sm btn-info me-2"
-                          onClick={() => toggleStatus(b.id)}
-                        >
-                          {b.status === "published" ? "Unpublish" : "Publish"}
-                        </button>
-                        <button
-                          className="btn btn-sm btn-secondary"
-                          onClick={() => toggleFeatured(b.id)}
-                        >
-                          {b.is_featured ? "Unfeature" : "Feature"}
-                        </button>
+            <>
+              <table className="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>Featured</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedBlogs.length > 0 ? (
+                    paginatedBlogs.map((b, i) => (
+                      <tr key={b.id}>
+                        <td>{(currentPage - 1) * perPage + i + 1}</td>
+                        <td>{b.title}</td>
+                        <td>{b.category}</td>
+                        <td>{b.status}</td>
+                        <td>{b.is_featured ? "Yes" : "No"}</td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-warning me-2"
+                            onClick={() => openEdit(b)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-sm btn-danger me-2"
+                            onClick={() => handleDelete(b.id)}
+                          >
+                            Delete
+                          </button>
+                          <button
+                            className="btn btn-sm btn-info me-2"
+                            onClick={() => toggleStatus(b.id)}
+                          >
+                            {b.status === "published" ? "Unpublish" : "Publish"}
+                          </button>
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => toggleFeatured(b.id)}
+                          >
+                            {b.is_featured ? "Unfeature" : "Feature"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6" className="text-center text-muted">
+                        No blogs found
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="text-center text-muted">
-                      No blogs found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+
+              {/* ===== PAGINATION ===== */}
+              {renderPagination()}
+            </>
           )}
         </div>
       </div>
     </div>
   );
 }
- 

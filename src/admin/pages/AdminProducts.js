@@ -78,13 +78,12 @@ export default function AdminProducts() {
 
   const fetchSubCategories = (categoryId) => {
     const filtered = allSubCategories.filter(
-      (s) => s.category_id === Number(categoryId)
+      (s) => s.category_id === Number(categoryId),
     );
     setSubCategories(filtered);
   };
 
   useEffect(() => {
-    setLoading(true);
     fetchProducts();
     fetchCategories();
     fetchAllSubCategories();
@@ -176,7 +175,7 @@ export default function AdminProducts() {
         await axios.post(
           `${BASE_URL}/admin/products/${editId}?_method=PUT`,
           formData,
-          config
+          config,
         );
       } else {
         await axios.post(`${BASE_URL}/admin/products`, formData, config);
@@ -197,7 +196,7 @@ export default function AdminProducts() {
     try {
       const res = await axios.get(
         `${BASE_URL}/admin/products/bulk-upload/template`,
-        { headers, responseType: "blob" }
+        { headers, responseType: "blob" },
       );
 
       const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -234,6 +233,28 @@ export default function AdminProducts() {
     } finally {
       setLoading(false);
     }
+  };
+
+  /* ================= STOCK ================= */
+  const updateStock = async (productId, change) => {
+    try {
+      setLoading(true);
+      await axios.patch(
+        `${BASE_URL}/admin/products/${productId}/stock`,
+        { change },
+        { headers },
+      );
+      fetchProducts();
+    } catch {
+      alert("Failed to update stock");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStockHistory = async (productId) => {
+    const params = productId ? { product_id: productId } : {};
+    return axios.get(`${BASE_URL}/admin/stock/history`, { headers, params });
   };
 
   return (
@@ -279,6 +300,8 @@ export default function AdminProducts() {
         loading={loading}
         onDownloadCsv={downloadCsvTemplate}
         onUploadCsv={uploadBulkCsv}
+        onUpdateStock={updateStock} // ✅ FIX
+        onViewStockHistory={getStockHistory} // ✅ FIX
       />
     </div>
   );

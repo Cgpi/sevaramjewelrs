@@ -30,19 +30,30 @@ export default function AdminCoupons() {
   };
 
   const [coupons, setCoupons] = useState([]);
+  const [filteredCoupons, setFilteredCoupons] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editId, setEditId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  /* ===== SEARCH & PAGINATION ===== */
+  const [searchText, setSearchText] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+
+  const totalPages = Math.ceil(filteredCoupons.length / perPage);
+
+  const paginatedCoupons = filteredCoupons.slice(
+    (currentPage - 1) * perPage,
+    currentPage * perPage,
+  );
+
   /* ===== FETCH ===== */
   const fetchCoupons = async () => {
     try {
       setLoading(true);
       const res = await api.get("/admin/coupons");
-
-      // ✅ FIX: extract paginated data
       setCoupons(res.data?.data?.data || []);
     } finally {
       setLoading(false);
@@ -53,7 +64,19 @@ export default function AdminCoupons() {
     fetchCoupons();
   }, []);
 
-  /* ===== FORM ===== */
+  /* ===== FILTER EFFECT ===== */
+  useEffect(() => {
+    const filtered = coupons.filter(
+      (c) =>
+        c.code.toLowerCase().includes(searchText.toLowerCase()) ||
+        String(c.value).includes(searchText) ||
+        String(c.min_amount).includes(searchText),
+    );
+    setFilteredCoupons(filtered);
+    setCurrentPage(1);
+  }, [searchText, coupons]);
+
+  /* ===== FORM HANDLERS ===== */
   const openCreate = () => {
     setForm(emptyForm);
     setEditId(null);
@@ -82,7 +105,6 @@ export default function AdminCoupons() {
     });
   };
 
-  /* ===== SAVE ===== */
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -105,38 +127,59 @@ export default function AdminCoupons() {
     }
   };
 
-  /* ===== DELETE ===== */
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this coupon?")) return;
     await api.delete(`/admin/coupons/${id}`);
     fetchCoupons();
   };
 
+  /* ===== PAGINATION UI ===== */
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+    const pages = [];
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+
+    return (
+      <nav>
+        <ul className="pagination">
+          <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+            <button
+              className="page-link"
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            >
+              Previous
+            </button>
+          </li>
+          {pages.map((p) => (
+            <li
+              key={p}
+              className={`page-item ${currentPage === p ? "active" : ""}`}
+            >
+              <button className="page-link" onClick={() => setCurrentPage(p)}>
+                {p}
+              </button>
+            </li>
+          ))}
+          <li
+            className={`page-item ${
+              currentPage === totalPages ? "disabled" : ""
+            }`}
+          >
+            <button
+              className="page-link"
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+            >
+              Next
+            </button>
+          </li>
+        </ul>
+      </nav>
+    );
+  };
+
   /* ===== UI ===== */
   return (
     <div className="container">
-      <style>{`
-        @media (max-width: 768px) {
-          table thead { display: none; }
-          table tbody tr {
-            display: block;
-            border: 1px solid #ddd;
-            margin-bottom: 1rem;
-            border-radius: 6px;
-            padding: 10px;
-          }
-          table tbody td {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-          }
-          table tbody td::before {
-            content: attr(data-label);
-            font-weight: 600;
-          }
-        }
-      `}</style>
-
       <div className="d-flex justify-content-between mb-3">
         <h3>Coupons</h3>
         <button className="btn btn-primary" onClick={openCreate}>
@@ -144,12 +187,37 @@ export default function AdminCoupons() {
         </button>
       </div>
 
+      {/* ===== SEARCH & PER PAGE ===== */}
+      <div className="row mb-3">
+        <div className="col-md-6 mb-2">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Search coupons..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+        </div>
+        <div className="col-md-3 mb-2">
+          <select
+            className="form-select"
+            value={perPage}
+            onChange={(e) => setPerPage(Number(e.target.value))}
+          >
+            {[10, 25, 50, 100].map((num) => (
+              <option key={num} value={num}>
+                {num} per page
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* ===== FORM ===== */}
       {showForm && (
         <div className="card mb-4">
           <div className="card-body">
             <h5>{editId ? "Edit Coupon" : "Create Coupon"}</h5>
-
             <form onSubmit={handleSubmit}>
               <div className="row g-3">
                 <div className="col-md-4">
@@ -163,7 +231,6 @@ export default function AdminCoupons() {
                     disabled={editId}
                   />
                 </div>
-
                 <div className="col-md-3">
                   <label>Type</label>
                   <select
@@ -176,7 +243,6 @@ export default function AdminCoupons() {
                     <option value="flat">Flat</option>
                   </select>
                 </div>
-
                 <div className="col-md-2">
                   <label>Value</label>
                   <input
@@ -188,7 +254,6 @@ export default function AdminCoupons() {
                     required
                   />
                 </div>
-
                 <div className="col-md-3">
                   <label>Min Amount</label>
                   <input
@@ -199,7 +264,6 @@ export default function AdminCoupons() {
                     onChange={handleChange}
                   />
                 </div>
-
                 <div className="col-md-4">
                   <label>Expires At</label>
                   <input
@@ -210,7 +274,6 @@ export default function AdminCoupons() {
                     onChange={handleChange}
                   />
                 </div>
-
                 <div className="col-md-2 d-flex align-items-end">
                   <div className="form-check">
                     <input
@@ -239,56 +302,60 @@ export default function AdminCoupons() {
           {loading ? (
             <Loader text="Loading coupons..." />
           ) : (
-            <table className="table table-bordered">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Code</th>
-                  <th>Type</th>
-                  <th>Value</th>
-                  <th>Min Amount</th>
-                  <th>Expires</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {coupons.map((c, i) => (
-                  <tr key={c.id}>
-                    <td data-label="#"> {i + 1} </td>
-                    <td data-label="Code">{c.code}</td>
-                    <td data-label="Type">{c.type}</td>
-                    <td data-label="Value">{c.value}</td>
-                    <td data-label="Min Amount">{c.min_amount}</td>
-                    <td data-label="Expires">{c.expires_at?.split("T")[0]}</td>
-                    <td data-label="Status">
-                      {c.is_active ? "Active" : "Inactive"}
-                    </td>
-                    <td data-label="Actions">
-                      <button
-                        className="btn btn-sm btn-warning me-2"
-                        onClick={() => openEdit(c)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => handleDelete(c.id)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {!coupons.length && (
+            <>
+              <table className="table table-bordered">
+                <thead>
                   <tr>
-                    <td colSpan="8" className="text-center text-muted">
-                      No coupons found
-                    </td>
+                    <th>#</th>
+                    <th>Code</th>
+                    <th>Type</th>
+                    <th>Value</th>
+                    <th>Min Amount</th>
+                    <th>Expires</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {paginatedCoupons.length > 0 ? (
+                    paginatedCoupons.map((c, i) => (
+                      <tr key={c.id}>
+                        <td> {(currentPage - 1) * perPage + i + 1} </td>
+                        <td>{c.code}</td>
+                        <td>{c.type}</td>
+                        <td>{c.value}</td>
+                        <td>{c.min_amount}</td>
+                        <td>{c.expires_at?.split("T")[0]}</td>
+                        <td>{c.is_active ? "Active" : "Inactive"}</td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-warning me-2"
+                            onClick={() => openEdit(c)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => handleDelete(c.id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="8" className="text-center text-muted">
+                        No coupons found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+
+              {/* ===== PAGINATION ===== */}
+              {renderPagination()}
+            </>
           )}
         </div>
       </div>

@@ -4,7 +4,7 @@ import axios from "axios";
 const BASE_URL = "https://sevaramjewellers.com/sevaramjwellers/api";
 const FALLBACK_IMAGE = "https://via.placeholder.com/160x100?text=No+Image";
 
-/* ================= LOADER (SAME AS COLLECTIONS) ================= */
+/* ================= LOADER ================= */
 const Loader = ({ text = "Loading..." }) => (
   <div className="d-flex justify-content-center align-items-center py-4">
     <div className="spinner-border text-primary me-2" role="status" />
@@ -23,7 +23,6 @@ export default function AdminBanners() {
     },
   });
 
-  /* ================= STATES ================= */
   const emptyForm = {
     title: "",
     link: "",
@@ -37,9 +36,13 @@ export default function AdminBanners() {
   const [imagePreview, setImagePreview] = useState(null);
   const [editId, setEditId] = useState(null);
   const [showForm, setShowForm] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  /* ================= SEARCH & PAGINATION ================= */
+  const [searchText, setSearchText] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
 
   /* ================= HELPERS ================= */
   const fixImageUrl = (url) => {
@@ -78,7 +81,6 @@ export default function AdminBanners() {
       position: b.position,
       is_active: Boolean(b.is_active),
     });
-
     setImagePreview(fixImageUrl(b.image_url));
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -91,7 +93,6 @@ export default function AdminBanners() {
     setImagePreview(null);
   };
 
-  /* ================= SAVE ================= */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -99,9 +100,8 @@ export default function AdminBanners() {
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) =>
-        fd.append(k, typeof v === "boolean" ? (v ? 1 : 0) : v)
+        fd.append(k, typeof v === "boolean" ? (v ? 1 : 0) : v),
       );
-
       if (imageFile) fd.append("image", imageFile);
 
       if (editId) {
@@ -122,7 +122,6 @@ export default function AdminBanners() {
     }
   };
 
-  /* ================= DELETE ================= */
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this banner?")) return;
     await api.delete(`/admin/banners/${id}`);
@@ -138,27 +137,58 @@ export default function AdminBanners() {
     };
   }, [imagePreview]);
 
+  /* ================= FILTER & PAGINATION ================= */
+  const filteredBanners = banners.filter(
+    (b) =>
+      b.title.toLowerCase().includes(searchText.toLowerCase()) ||
+      b.link.toLowerCase().includes(searchText.toLowerCase()),
+  );
+
+  const totalPages = Math.ceil(filteredBanners.length / perPage);
+  const paginatedBanners = filteredBanners.slice(
+    (currentPage - 1) * perPage,
+    currentPage * perPage,
+  );
+
   /* ================= UI ================= */
   return (
     <div className="container">
       <style>{`
-        .banner-preview {
-          width: 100%;
-          height: 200px;
-          object-fit: cover;
-          border-radius: 8px;
-          border: 1px solid #ddd;
-        }
+        .banner-preview { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; }
       `}</style>
 
-      <div className="d-flex justify-content-between mb-3">
-        <h3>Banners</h3>
-        <button className="btn btn-primary" onClick={openCreateForm}>
-          + Add Banner
-        </button>
+      {/* ===== HEADER + SEARCH + PER PAGE ===== */}
+      <div className="row mb-3 align-items-center">
+        <div className="col-md-6 mb-2">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Search banners..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+        </div>
+        <div className="col-md-3 mb-2">
+          <select
+            className="form-select"
+            value={perPage}
+            onChange={(e) => setPerPage(Number(e.target.value))}
+          >
+            {[10, 25, 50, 100].map((num) => (
+              <option key={num} value={num}>
+                {num} per page
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="col-md-3 mb-2 text-end">
+          <button className="btn btn-primary" onClick={openCreateForm}>
+            + Add Banner
+          </button>
+        </div>
       </div>
 
-      {/* ================= FORM ================= */}
+      {/* ===== FORM ===== */}
       {showForm && (
         <div className="card mb-4">
           <div className="card-body">
@@ -227,7 +257,7 @@ export default function AdminBanners() {
                 )}
               </div>
 
-              <div>
+              <div className="col-12">
                 <button className="btn btn-success" disabled={saving}>
                   {saving ? (
                     <>
@@ -251,76 +281,131 @@ export default function AdminBanners() {
         </div>
       )}
 
-      {/* ================= TABLE ================= */}
+      {/* ===== TABLE ===== */}
       <div className="card">
         <div className="card-body">
           {loading ? (
             <Loader text="Loading banners..." />
           ) : (
-            <table className="table table-bordered align-middle">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Title</th>
-                  <th>Position</th>
-                  <th>Status</th>
-                  <th>Image</th>
-                  <th width="160">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {banners.length ? (
-                  banners.map((b, i) => (
-                    <tr key={b.id}>
-                      <td>{i + 1}</td>
-                      <td>{b.title}</td>
-                      <td>{b.position}</td>
-                      <td>
-                        {b.is_active ? (
-                          <span className="badge bg-success">Active</span>
-                        ) : (
-                          <span className="badge bg-secondary">Inactive</span>
-                        )}
-                      </td>
-                      <td>
-                        <img
-                          src={fixImageUrl(b.image_url)}
-                          onError={(e) =>
-                            (e.currentTarget.src = FALLBACK_IMAGE)
-                          }
-                          style={{
-                            width: 80,
-                            height: 50,
-                            objectFit: "cover",
-                            borderRadius: 6,
-                          }}
-                        />
-                      </td>
-                      <td>
-                        <button
-                          className="btn btn-sm btn-warning me-2"
-                          onClick={() => openEditForm(b)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn btn-sm btn-danger"
-                          onClick={() => handleDelete(b.id)}
-                        >
-                          Delete
-                        </button>
+            <>
+              <table className="table table-bordered align-middle">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Title</th>
+                    <th>Position</th>
+                    <th>Status</th>
+                    <th>Image</th>
+                    <th width="160">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedBanners.length ? (
+                    paginatedBanners.map((b, i) => (
+                      <tr key={b.id}>
+                        <td>{(currentPage - 1) * perPage + i + 1}</td>
+                        <td>{b.title}</td>
+                        <td>{b.position}</td>
+                        <td>
+                          {b.is_active ? (
+                            <span className="badge bg-success">Active</span>
+                          ) : (
+                            <span className="badge bg-secondary">Inactive</span>
+                          )}
+                        </td>
+                        <td>
+                          <img
+                            src={fixImageUrl(b.image_url)}
+                            onError={(e) =>
+                              (e.currentTarget.src = FALLBACK_IMAGE)
+                            }
+                            style={{
+                              width: 80,
+                              height: 50,
+                              objectFit: "cover",
+                              borderRadius: 6,
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-warning me-2"
+                            onClick={() => openEditForm(b)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => handleDelete(b.id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6" className="text-center text-muted">
+                        No banners found
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="text-center text-muted">
-                      No banners found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+
+              {/* ===== PAGINATION ===== */}
+              {totalPages > 1 && (
+                <nav>
+                  <ul className="pagination justify-content-center mt-3">
+                    <li
+                      className={`page-item ${
+                        currentPage === 1 ? "disabled" : ""
+                      }`}
+                    >
+                      <button
+                        className="page-link"
+                        onClick={() =>
+                          setCurrentPage((p) => Math.max(p - 1, 1))
+                        }
+                      >
+                        Previous
+                      </button>
+                    </li>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (p) => (
+                        <li
+                          key={p}
+                          className={`page-item ${
+                            currentPage === p ? "active" : ""
+                          }`}
+                        >
+                          <button
+                            className="page-link"
+                            onClick={() => setCurrentPage(p)}
+                          >
+                            {p}
+                          </button>
+                        </li>
+                      ),
+                    )}
+                    <li
+                      className={`page-item ${
+                        currentPage === totalPages ? "disabled" : ""
+                      }`}
+                    >
+                      <button
+                        className="page-link"
+                        onClick={() =>
+                          setCurrentPage((p) => Math.min(p + 1, totalPages))
+                        }
+                      >
+                        Next
+                      </button>
+                    </li>
+                  </ul>
+                </nav>
+              )}
+            </>
           )}
         </div>
       </div>
