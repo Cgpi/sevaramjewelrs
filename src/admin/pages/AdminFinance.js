@@ -12,14 +12,17 @@ const Loader = ({ text = "Loading..." }) => (
 );
 
 /* ================= TABLE COMPONENTS ================= */
-const PaymentTable = ({ data, refundPayment }) => (
+const PaymentTable = ({ data }) => (
   <div className="table-responsive">
     <table className="table table-bordered align-middle table-hover">
       <thead>
         <tr>
-          {["ID", "Reference", "Amount", "Status", "Method", "Action"].map((h) => (
-            <th key={h}>{h}</th>
-          ))}
+          <th>ID</th>
+          <th>Reference</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Method</th>
+          <th>Transactions</th>
         </tr>
       </thead>
       <tbody>
@@ -29,15 +32,21 @@ const PaymentTable = ({ data, refundPayment }) => (
               <td>{p.id}</td>
               <td>{p.reference}</td>
               <td>₹{p.amount}</td>
-              <td>{p.status}</td>
-              <td>{p.method}</td>
               <td>
-                {p.status === "success" && (
-                  <button className="btn btn-danger btn-sm" onClick={() => refundPayment(p.id)}>
-                    Refund
-                  </button>
-                )}
+                <span
+                  className={`badge ${
+                    p.status === "success"
+                      ? "bg-success"
+                      : p.status === "refunded"
+                        ? "bg-warning text-dark"
+                        : "bg-danger"
+                  }`}
+                >
+                  {p.status}
+                </span>
               </td>
+              <td>{p.method}</td>
+              <td>{p.transactions?.length || 0}</td>
             </tr>
           ))
         ) : (
@@ -52,65 +61,124 @@ const PaymentTable = ({ data, refundPayment }) => (
   </div>
 );
 
-const TransactionTable = ({ data }) => (
-  <div className="table-responsive">
-    <table className="table table-bordered align-middle table-hover">
-      <thead className="table-light">
-        <tr>
-          <th>ID</th>
-          <th>Payment ID</th>
-          <th>Type</th>
-          <th>Amount</th>
-          <th>Status</th>
-          <th>Reference</th>
-          <th>Meta</th>
-          <th>Created At</th>
-          <th>Updated At</th>
-          <th>Payment Details</th>
-          <th>User Details</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.length ? (
-          data.map((tx) => (
-            <tr key={tx.id}>
-              <td>{tx.id}</td>
-              <td>{tx.payment_id}</td>
-              <td>{tx.type}</td>
-              <td>₹{tx.amount}</td>
-              <td>{tx.status}</td>
-              <td>{tx.reference}</td>
-              <td style={{ maxWidth: "200px", wordBreak: "break-word" }}>{tx.meta}</td>
-              <td>{new Date(tx.created_at).toLocaleString()}</td>
-              <td>{new Date(tx.updated_at).toLocaleString()}</td>
-              <td style={{ maxWidth: "220px", wordBreak: "break-word" }}>
-                <strong>Ref:</strong> {tx.payment?.reference} <br />
-                <strong>Amount:</strong> ₹{tx.payment?.amount} <br />
-                <strong>Status:</strong> {tx.payment?.status} <br />
-                <strong>Method:</strong> {tx.payment?.method} <br />
-                <strong>Gateway:</strong> {tx.payment?.gateway} <br />
-                <strong>Created:</strong> {new Date(tx.payment?.created_at).toLocaleString()} <br />
-                <strong>Updated:</strong> {new Date(tx.payment?.updated_at).toLocaleString()}
-              </td>
-              <td style={{ maxWidth: "180px", wordBreak: "break-word" }}>
-                <strong>Name:</strong> {tx.payment?.user?.name} <br />
-                <strong>Email:</strong> {tx.payment?.user?.email} <br />
-                <strong>Created:</strong> {new Date(tx.payment?.user?.created_at).toLocaleString()} <br />
-                <strong>Updated:</strong> {new Date(tx.payment?.user?.updated_at).toLocaleString()}
+const TransactionTable = ({ data }) => {
+  const [openRow, setOpenRow] = useState(null);
+
+  const toggleRow = (id) => {
+    setOpenRow(openRow === id ? null : id);
+  };
+
+  return (
+    <div className="table-responsive">
+      <table className="table table-bordered align-middle table-hover">
+        <thead className="table-light">
+          <tr>
+            <th>ID</th>
+
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Reference</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.length ? (
+            data.map((tx) => (
+              <React.Fragment key={tx.id}>
+                {/* MAIN ROW */}
+                <tr>
+                  <td>{tx.id}</td>
+
+                  <td>{tx.type}</td>
+                  <td>₹{tx.amount}</td>
+                  <td>{tx.status}</td>
+                  <td>{tx.reference}</td>
+                  <td>
+                    <button
+                      className="btn btn-sm btn-outline-primary"
+                      onClick={() => toggleRow(tx.id)}
+                    >
+                      {openRow === tx.id ? "Hide" : "View More"}
+                    </button>
+                  </td>
+                </tr>
+
+                {/* EXPANDED ROW */}
+                {openRow === tx.id && (
+                  <tr className="bg-light">
+                    <td colSpan={7}>
+                      <div className="row g-3">
+                        {/* META / ORDER */}
+                        <div className="col-md-4">
+                          <h6 className="fw-bold">Order / Meta</h6>
+                          <pre className="small bg-white p-2 rounded">
+                            {JSON.stringify(
+                              JSON.parse(tx.meta || "{}"),
+                              null,
+                              2,
+                            )}
+                          </pre>
+                        </div>
+
+                        {/* PAYMENT DETAILS */}
+                        <div className="col-md-4">
+                          <h6 className="fw-bold">Payment Details</h6>
+                          <p className="mb-1">
+                            <strong>Reference:</strong> {tx.payment?.reference}
+                          </p>
+                          <p className="mb-1">
+                            <strong>Amount:</strong> ₹{tx.payment?.amount}
+                          </p>
+                          <p className="mb-1">
+                            <strong>Status:</strong> {tx.payment?.status}
+                          </p>
+                          <p className="mb-1">
+                            <strong>Method:</strong> {tx.payment?.method}
+                          </p>
+                          <p className="mb-1">
+                            <strong>Gateway:</strong> {tx.payment?.gateway}
+                          </p>
+                          <p className="mb-1">
+                            <strong>Created:</strong>{" "}
+                            {new Date(tx.payment?.created_at).toLocaleString()}
+                          </p>
+                        </div>
+
+                        {/* USER DETAILS */}
+                        <div className="col-md-4">
+                          <h6 className="fw-bold">User Details</h6>
+                          <p className="mb-1">
+                            <strong>Name:</strong> {tx.payment?.user?.name}
+                          </p>
+                          <p className="mb-1">
+                            <strong>Email:</strong> {tx.payment?.user?.email}
+                          </p>
+                          <p className="mb-1">
+                            <strong>Joined:</strong>{" "}
+                            {new Date(
+                              tx.payment?.user?.created_at,
+                            ).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={7} className="text-center text-muted">
+                No transactions found
               </td>
             </tr>
-          ))
-        ) : (
-          <tr>
-            <td colSpan={11} className="text-center text-muted">
-              No transactions found
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-);
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
 const ReportTable = ({ reportType, data }) => {
   if (reportType === "orders") {
@@ -176,7 +244,8 @@ const ReportTable = ({ reportType, data }) => {
                 <td>
                   {Object.entries(item).map(([k, v]) => (
                     <div key={k}>
-                      <strong>{k.replace(/_/g, " ")}:</strong> {v?.name || v?.toString() || "-"}
+                      <strong>{k.replace(/_/g, " ")}:</strong>{" "}
+                      {v?.name || v?.toString() || "-"}
                     </div>
                   ))}
                 </td>
@@ -269,9 +338,17 @@ export default function AdminFinance() {
         queryParams.set("status", subSection);
       }
 
-      const res = await axios.get(`${url}?${queryParams.toString()}`, { headers });
+      const res = await axios.get(`${url}?${queryParams.toString()}`, {
+        headers,
+      });
 
-      setData(res.data?.data ? (Array.isArray(res.data.data) ? res.data.data : [res.data.data]) : []);
+      setData(
+        res.data?.data
+          ? Array.isArray(res.data.data)
+            ? res.data.data
+            : [res.data.data]
+          : [],
+      );
       setLastPage(res.data?.last_page || 1);
     } catch (err) {
       console.error(err);
@@ -289,7 +366,11 @@ export default function AdminFinance() {
   const refundPayment = async (id) => {
     if (!window.confirm("Refund this payment?")) return;
     try {
-      await axios.post(`${BASE_URL}/admin/payments/${id}/refund`, {}, { headers });
+      await axios.post(
+        `${BASE_URL}/admin/payments/${id}/refund`,
+        {},
+        { headers },
+      );
       fetchData();
     } catch {
       alert("Refund failed");
@@ -391,28 +472,46 @@ export default function AdminFinance() {
                   type="date"
                   className="form-control"
                   value={dateFilter.from}
-                  onChange={(e) => setDateFilter({ ...dateFilter, from: e.target.value })}
+                  onChange={(e) =>
+                    setDateFilter({ ...dateFilter, from: e.target.value })
+                  }
                 />
                 <input
                   type="date"
                   className="form-control"
                   value={dateFilter.to}
-                  onChange={(e) => setDateFilter({ ...dateFilter, to: e.target.value })}
+                  onChange={(e) =>
+                    setDateFilter({ ...dateFilter, to: e.target.value })
+                  }
                 />
               </>
             )}
 
-            <button className="btn btn-success" onClick={() => exportReport(reportType, "csv")}>
+            <button
+              className="btn btn-success"
+              onClick={() => exportReport(reportType, "csv")}
+            >
               Export CSV
             </button>
-            <button className="btn btn-success" onClick={() => exportReport(reportType, "pdf")}>
+            <button
+              className="btn btn-success"
+              onClick={() => exportReport(reportType, "pdf")}
+            >
               Export PDF
             </button>
           </div>
 
           {reportType === "orders" && (
             <div className="status-filter mb-3 d-flex gap-2 flex-wrap">
-              {["all", "pending", "confirmed", "shipped", "delivered", "cancelled", "returned"].map((status) => (
+              {[
+                "all",
+                "pending",
+                "confirmed",
+                "shipped",
+                "delivered",
+                "cancelled",
+                "returned",
+              ].map((status) => (
                 <button
                   key={status}
                   className={`btn btn-sm ${subSection === status ? "btn-dark" : "btn-outline-dark"}`}
@@ -449,20 +548,37 @@ export default function AdminFinance() {
             <Loader text="Loading..." />
           ) : (
             <>
-              {section === "payments" && <PaymentTable data={filteredData} refundPayment={refundPayment} />}
-              {section === "transactions" && <TransactionTable data={filteredData} />}
-              {section === "reports" && <ReportTable reportType={reportType} data={data} />}
+              {section === "payments" && (
+                <PaymentTable
+                  data={filteredData}
+                  refundPayment={refundPayment}
+                />
+              )}
+              {section === "transactions" && (
+                <TransactionTable data={filteredData} />
+              )}
+              {section === "reports" && (
+                <ReportTable reportType={reportType} data={data} />
+              )}
 
               {/* PAGINATION */}
               {data.length > 0 && (
                 <div className="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
-                  <button className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => setPage(page - 1)}>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    disabled={page === 1}
+                    onClick={() => setPage(page - 1)}
+                  >
                     Previous
                   </button>
                   <span>
                     Page <strong>{page}</strong> of <strong>{lastPage}</strong>
                   </span>
-                  <button className="btn btn-secondary btn-sm" disabled={page === lastPage} onClick={() => setPage(page + 1)}>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    disabled={page === lastPage}
+                    onClick={() => setPage(page + 1)}
+                  >
                     Next
                   </button>
                 </div>

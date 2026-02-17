@@ -3,6 +3,7 @@ import axios from "axios";
 
 const BASE_URL = "https://sevaramjewellers.com/sevaramjwellers/api";
 const FALLBACK_IMAGE = "https://via.placeholder.com/160x100?text=No+Image";
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2 MB
 
 /* ================= LOADER ================= */
 const Loader = ({ text = "Loading..." }) => (
@@ -42,7 +43,8 @@ export default function AdminBanners() {
   /* ================= SEARCH & PAGINATION ================= */
   const [searchText, setSearchText] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [totalPage, setTotalPage] = useState(1);
+  const perPage = 10; // fixed per page
 
   /* ================= HELPERS ================= */
   const fixImageUrl = (url) => {
@@ -54,8 +56,15 @@ export default function AdminBanners() {
   const fetchBanners = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/admin/banners");
-      setBanners(res.data?.data?.data || []);
+      const res = await api.get(
+        `/admin/banners?page=${currentPage}&per_page=${perPage}${
+          searchText ? `&search=${searchText}` : ""
+        }`,
+      );
+      const data = res.data?.data;
+      setBanners(data?.data || []);
+      setCurrentPage(data?.current_page || 1);
+      setTotalPage(data?.last_page || 1);
     } catch (err) {
       console.error("Failed to load banners", err);
     } finally {
@@ -65,9 +74,9 @@ export default function AdminBanners() {
 
   useEffect(() => {
     fetchBanners();
-  }, []);
+  }, [currentPage, searchText]);
 
-  /* ================= FORM ================= */
+  /* ================= FORM HANDLERS ================= */
   const openCreateForm = () => {
     resetForm();
     setShowForm(true);
@@ -128,6 +137,21 @@ export default function AdminBanners() {
     fetchBanners();
   };
 
+  /* ================= IMAGE VALIDATION ================= */
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      alert("Image size must not exceed 2 MB");
+      e.target.value = null;
+      return;
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
   /* ================= CLEANUP ================= */
   useEffect(() => {
     return () => {
@@ -137,19 +161,6 @@ export default function AdminBanners() {
     };
   }, [imagePreview]);
 
-  /* ================= FILTER & PAGINATION ================= */
-  const filteredBanners = banners.filter(
-    (b) =>
-      b.title.toLowerCase().includes(searchText.toLowerCase()) ||
-      b.link.toLowerCase().includes(searchText.toLowerCase()),
-  );
-
-  const totalPages = Math.ceil(filteredBanners.length / perPage);
-  const paginatedBanners = filteredBanners.slice(
-    (currentPage - 1) * perPage,
-    currentPage * perPage,
-  );
-
   /* ================= UI ================= */
   return (
     <div className="container">
@@ -157,29 +168,19 @@ export default function AdminBanners() {
         .banner-preview { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; }
       `}</style>
 
-      {/* ===== HEADER + SEARCH + PER PAGE ===== */}
+      {/* ===== HEADER + SEARCH ===== */}
       <div className="row mb-3 align-items-center">
-        <div className="col-md-6 mb-2">
+        <div className="col-md-9 mb-2">
           <input
             type="text"
             className="form-control"
             placeholder="Search banners..."
             value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
+            onChange={(e) => {
+              setSearchText(e.target.value);
+              setCurrentPage(1); // Reset to first page on search
+            }}
           />
-        </div>
-        <div className="col-md-3 mb-2">
-          <select
-            className="form-select"
-            value={perPage}
-            onChange={(e) => setPerPage(Number(e.target.value))}
-          >
-            {[10, 25, 50, 100].map((num) => (
-              <option key={num} value={num}>
-                {num} per page
-              </option>
-            ))}
-          </select>
         </div>
         <div className="col-md-3 mb-2 text-end">
           <button className="btn btn-primary" onClick={openCreateForm}>
@@ -193,7 +194,6 @@ export default function AdminBanners() {
         <div className="card mb-4">
           <div className="card-body">
             <h5>{editId ? "Edit" : "Create"} Banner</h5>
-
             <form onSubmit={handleSubmit} className="row g-3">
               <div className="col-md-6">
                 <label>Title</label>
@@ -240,17 +240,12 @@ export default function AdminBanners() {
               </div>
 
               <div className="col-md-6">
-                <label>Banner Image</label>
+                <label>Banner Image (Max 2 MB)</label>
                 <input
                   type="file"
                   className="form-control"
                   accept="image/*"
-                  onChange={(e) => {
-                    const f = e.target.files[0];
-                    if (!f) return;
-                    setImageFile(f);
-                    setImagePreview(URL.createObjectURL(f));
-                  }}
+                  onChange={handleImageChange}
                 />
                 {imagePreview && (
                   <img src={imagePreview} className="banner-preview mt-2" />
@@ -300,8 +295,8 @@ export default function AdminBanners() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedBanners.length ? (
-                    paginatedBanners.map((b, i) => (
+                  {banners.length ? (
+                    banners.map((b, i) => (
                       <tr key={b.id}>
                         <td>{(currentPage - 1) * perPage + i + 1}</td>
                         <td>{b.title}</td>
@@ -354,13 +349,11 @@ export default function AdminBanners() {
               </table>
 
               {/* ===== PAGINATION ===== */}
-              {totalPages > 1 && (
+              {totalPage > 1 && (
                 <nav>
                   <ul className="pagination justify-content-center mt-3">
                     <li
-                      className={`page-item ${
-                        currentPage === 1 ? "disabled" : ""
-                      }`}
+                      className={`page-item ${currentPage === 1 ? "disabled" : ""}`}
                     >
                       <button
                         className="page-link"
@@ -371,13 +364,11 @@ export default function AdminBanners() {
                         Previous
                       </button>
                     </li>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    {Array.from({ length: totalPage }, (_, i) => i + 1).map(
                       (p) => (
                         <li
                           key={p}
-                          className={`page-item ${
-                            currentPage === p ? "active" : ""
-                          }`}
+                          className={`page-item ${currentPage === p ? "active" : ""}`}
                         >
                           <button
                             className="page-link"
@@ -390,13 +381,13 @@ export default function AdminBanners() {
                     )}
                     <li
                       className={`page-item ${
-                        currentPage === totalPages ? "disabled" : ""
+                        currentPage === totalPage ? "disabled" : ""
                       }`}
                     >
                       <button
                         className="page-link"
                         onClick={() =>
-                          setCurrentPage((p) => Math.min(p + 1, totalPages))
+                          setCurrentPage((p) => Math.min(p + 1, totalPage))
                         }
                       >
                         Next
